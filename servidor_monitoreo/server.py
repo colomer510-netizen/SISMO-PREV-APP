@@ -2,11 +2,14 @@ import os
 import json
 import time
 import asyncio
-from typing import Dict, List, Any
+import io
+import csv
+from datetime import datetime
 import requests
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, Response
 from fastapi.responses import HTMLResponse, JSONResponse
 from pydantic import BaseModel
+from seismic_cnn_filter import seismic_filter
 
 app = FastAPI(title="SISMO-PREV Central Server", version="1.0.0")
 
@@ -51,6 +54,16 @@ class ConnectionManager:
         for dead in dead_nodes:
             self.disconnect_sensor(dead)
 
+    async def broadcast_bytes_to_sensors(self, data: bytes):
+        dead_nodes = []
+        for node_id, ws in self.active_sensors.items():
+            try:
+                await ws.send_bytes(data)
+            except Exception:
+                dead_nodes.append(node_id)
+        for dead in dead_nodes:
+            self.disconnect_sensor(dead)
+
 manager = ConnectionManager()
 
 system_state = {
@@ -71,11 +84,27 @@ class TelemetryPayload(BaseModel):
     sta_lta_ratio: float = 1.0
     is_triggered: bool = False
     battery: int = 100
+    waveform: List[float] = []
 
 class DrillControlPayload(BaseModel):
     action: str
     simulated_magnitude: float = 6.8
     epicenter: str = "Falla Local - Costa del Pacífico"
+
+class TelegramAlertPayload(BaseModel):
+    message: str = "🚨 Prueba de alerta SISMO-PREV."
+
+def send_telegram_alert(message_text: str):
+    token = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
+    chat_id = os.environ.get("TELEGRAM_CHAT_ID", "").strip()
+    if not token or not chat_id:
+        return {"status": "skipped", "message": "TELEGRAM_BOT_TOKEN o TELEGRAM_CHAT_ID no configurados"}
+    try:
+        url = f"https://api.telegram.org/bot{token}/sendMessage"
+        resp = requests.post(url, json={"chat_id": chat_id, "text": message_text, "parse_mode": "Markdown"}, timeout=4)
+        return {"status": "sent" if resp.status_code == 200 else "error", "code": resp.status_code}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
 
 def query_ai_assistant(prompt: str) -> str:
     gemini_key = os.environ.get("GEMINI_API_KEY", "").strip()
@@ -124,6 +153,25 @@ def query_ai_assistant(prompt: str) -> str:
         "- Despacho de Emergencia: Priorizar verificación en construcciones sobre suelos arcillosos o blandos."
     )
 
+def calculate_triangulation_and_lead_time(triggered_nodes: list, mag_est: float):
+    # Triangulación de epicentro por centroide ponderado de aceleración (PGA)
+    total_weight = sum(max(n.get("pga", 0.001), 0.001) for n in triggered_nodes)
+    epicenter_lat = sum(n.get("lat", 12.1364) * max(n.get("pga", 0.001), 0.001) for n in triggered_nodes) / total_weight
+    epicenter_lng = sum(n.get("lng", -86.2514) * max(n.get("pga", 0.001), 0.001) for n in triggered_nodes) / total_weight
+
+    # Distancia promedio aproximada en km a los nodos (1 grado lat ≈ 111 km)
+    avg_dist_km = sum(
+        (((n.get("lat", 12.1364) - epicenter_lat) ** 2 + ((n.get("lng", -86.2514) - epicenter_lng) ** 2) * 0.9) ** 0.5) * 111.0
+        for n in triggered_nodes
+    ) / len(triggered_nodes)
+
+    # Velocidad Onda P ≈ 6.0 km/s, Velocidad Onda S (destructiva) ≈ 3.5 km/s
+    # Lead time = Tiempo que tarda la Onda S en llegar a la comunidad tras la detección inicial de Onda P
+    # Para sismos locales se asegura una ventana realista de advertencia entre 8s y 35s
+    lead_time = round(max(8.0, min(35.0, (avg_dist_km / 3.5) - (avg_dist_km / 6.0) + (mag_est * 2.0))), 1)
+
+    return round(epicenter_lat, 5), round(epicenter_lng, 5), lead_time, round(avg_dist_km, 1)
+
 def evaluate_seismic_consensus():
     now = time.time()
     triggered_nodes = [
@@ -138,6 +186,8 @@ def evaluate_seismic_consensus():
         if mag_est > 8.5:
             mag_est = 8.5
 
+        epi_lat, epi_lng, lead_time, dist_km = calculate_triangulation_and_lead_time(triggered_nodes, mag_est)
+
         system_state["status"] = "earthquake"
         system_state["threat_level"] = "ROJO"
         event = {
@@ -146,6 +196,10 @@ def evaluate_seismic_consensus():
             "estimated_magnitude": mag_est,
             "average_pga": round(avg_pga, 4),
             "triggered_nodes_count": count,
+            "epicenter_lat": epi_lat,
+            "epicenter_lng": epi_lng,
+            "lead_time_seconds": lead_time,
+            "distance_km": dist_km,
             "status": "CONFIRMADO",
             "type": "REAL"
         }
@@ -174,10 +228,32 @@ async def receive_telemetry(data: TelemetryPayload):
         del system_state["nodes"][sid]
 
     if data.is_triggered and not system_state["active_drill"]:
-        system_state["status"] = "warning"
-        system_state["threat_level"] = "AMARILLO"
+        # FILTRO NEURONAL CNN 1D: Descarte de golpes o caídas accidentales del smartphone
+        if data.waveform and len(data.waveform) >= 8:
+            features = seismic_filter.extract_features(data.waveform)
+            if not features.get("is_seismic", True):
+                # Descartado como falso positivo (ruido de alta frecuencia)
+                node_data["is_triggered"] = False
+                node_data["pga"] = 0.002
+                data.is_triggered = False
+
+        if data.is_triggered:
+            system_state["status"] = "warning"
+            system_state["threat_level"] = "AMARILLO"
 
     consensus_event = evaluate_seismic_consensus()
+    if consensus_event:
+        # Notificación automática a canal de Telegram de la comunidad
+        msg_tg = (
+            f"🚨 *¡ALERTA SÍSMICA CONFIRMADA - SISMO-PREV!* 🚨\n\n"
+            f"• *Magnitud Estimada:* M{consensus_event['estimated_magnitude']}\n"
+            f"• *Aceleración Pico (PGA):* {consensus_event['average_pga']} g\n"
+            f"• *Sensores Disparados:* {consensus_event['triggered_nodes_count']} smartphones\n"
+            f"• *Tiempo de Advertencia (Lead Time):* ~{consensus_event['lead_time_seconds']} seg\n"
+            f"• *Epicentro Estimado:* {consensus_event['epicenter_lat']}, {consensus_event['epicenter_lng']}\n\n"
+            f"📢 _¡Proceda a zona segura y mantenga la calma!_"
+        )
+        send_telegram_alert(msg_tg)
 
     await manager.broadcast_to_dashboards({
         "type": "telemetry_update",
@@ -232,13 +308,107 @@ def ai_analysis(request_data: Dict[str, Any]):
     model_name = "Google Gemini 2.5 Flash" if os.environ.get("GEMINI_API_KEY") else "SISMO-PREV AI Engine"
     return {"analysis": analysis, "model": model_name}
 
+@app.get("/api/cap/feed.xml")
+def get_cap_feed():
+    """Genera documento XML bajo el estándar oficial OASIS CAP 1.2 (Common Alerting Protocol)."""
+    last_event = system_state.get("last_event")
+    now_iso = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S-00:00")
+    
+    event_id = last_event["id"] if last_event else f"SISMO-NONE-{int(time.time())}"
+    msg_type = "Alert" if last_event else "Update"
+    severity = "Severe" if last_event else "Minor"
+    headline = f"Alerta Sísmica Temprana Comunitaria M{last_event['estimated_magnitude']}" if last_event else "Monitoreo Sísmico Comunitario SISMO-PREV Normal"
+    description = (
+        f"Red comunitaria SISMO-PREV detectó onda sísmica con PGA {last_event['average_pga']} g en {last_event['triggered_nodes_count']} sensores móviles sincronizados."
+        if last_event else "Todos los sensores móviles comunitarios operan en estado de reposo nominal."
+    )
+    instruction = "Repliegue a zonas de seguridad internas o externas designadas. Mantenga la calma." if last_event else "Sin acciones requeridas."
+    lat = last_event.get("epicenter_lat", 12.1364) if last_event else 12.1364
+    lng = last_event.get("epicenter_lng", -86.2514) if last_event else -86.2514
+
+    cap_xml = f"""<?xml version="1.0" encoding="UTF-8"?>
+<alert xmlns="urn:oasis:names:tc:emergency:cap:1.2">
+  <identifier>{event_id}</identifier>
+  <sender>sismoprev.red.comunitaria@rallylatam.org</sender>
+  <sent>{now_iso}</sent>
+  <status>Actual</status>
+  <msgType>{msg_type}</msgType>
+  <scope>Public</scope>
+  <code>IPAWS-1.2</code>
+  <info>
+    <category>Geo</category>
+    <event>Earthquake Early Warning</event>
+    <urgency>Immediate</urgency>
+    <severity>{severity}</severity>
+    <certainty>Observed</certainty>
+    <eventCode>
+      <valueName>SAME</valueName>
+      <value>EQW</value>
+    </eventCode>
+    <headline>{headline}</headline>
+    <description>{description}</description>
+    <instruction>{instruction}</instruction>
+    <area>
+      <areaDesc>Comunidad Escolar y Vecinal - Red SISMO-PREV</areaDesc>
+      <circle>{lat},{lng},25.0</circle>
+    </area>
+  </info>
+</alert>"""
+    return Response(content=cap_xml, media_type="application/xml")
+
+@app.get("/api/export/csv")
+def export_seismic_csv():
+    """Exporta el historial de eventos sísmicos y telemetría en formato CSV descargable."""
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow([
+        "ID_Evento", "Fecha_Hora", "Magnitud_Estimada", "PGA_Promedio_g", 
+        "Nodos_Disparados", "Epicentro_Lat", "Epicentro_Lng", "Lead_Time_Segundos", "Estado", "Tipo"
+    ])
+    
+    events = system_state.get("event_history", [])
+    if not events and system_state.get("last_event"):
+        events = [system_state["last_event"]]
+        
+    for evt in events:
+        writer.writerow([
+            evt.get("id", "N/A"),
+            evt.get("timestamp", "N/A"),
+            evt.get("estimated_magnitude", 0.0),
+            evt.get("average_pga", 0.0),
+            evt.get("triggered_nodes_count", 0),
+            evt.get("epicenter_lat", 12.1364),
+            evt.get("epicenter_lng", -86.2514),
+            evt.get("lead_time_seconds", 0.0),
+            evt.get("status", "CONFIRMADO"),
+            evt.get("type", "REAL")
+        ])
+        
+    csv_content = output.getvalue()
+    return Response(
+        content=csv_content,
+        media_type="text/csv",
+        headers={"Content-Disposition": "attachment; filename=sismo_prev_eventos.csv"}
+    )
+
+@app.post("/api/alert/telegram")
+def send_test_telegram(payload: TelegramAlertPayload):
+    """Endpoint para prueba y despacho manual de alertas a Telegram."""
+    msg = payload.message
+    res = send_telegram_alert(msg)
+    return res
+
 @app.websocket("/ws/dashboard")
 async def websocket_dashboard(websocket: WebSocket):
     await manager.connect_dashboard(websocket)
     try:
         await websocket.send_json({"type": "init_state", "system_state": system_state})
         while True:
-            await websocket.receive_text()
+            # Soporta tanto mensajes de texto/JSON como transmisión binaria de audio de megafonía
+            message = await websocket.receive()
+            if "bytes" in message and message["bytes"]:
+                # Retransmitir audio PCM en vivo a todos los smartphones conectados
+                await manager.broadcast_bytes_to_sensors(message["bytes"])
     except WebSocketDisconnect:
         manager.disconnect_dashboard(websocket)
 

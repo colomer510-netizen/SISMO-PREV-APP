@@ -16,6 +16,9 @@
   <link rel="icon" type="image/png" href="/logo.png">
 
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- Leaflet.js para Mapa Geográfico en Vivo -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <style>
     :root {
       --bg: #090d16;
@@ -343,6 +346,36 @@
           <button class="btn-reset" onclick="resetStatus()">
             🔄 Restablecer a Normal
           </button>
+          <!-- MEGAFONÍA DE EMERGENCIA -->
+          <button id="btnMegaphone" onclick="toggleEmergencyBroadcast()" style="background: #e11d48; color: white;">
+            🎙️ Megafonía IP a Teléfonos
+          </button>
+        </div>
+      </div>
+
+      <!-- EXPORTACIÓN Y PROTOCOLO OFICIAL -->
+      <div class="card" style="padding: 12px;">
+        <div class="card-title">
+          <span>Herramientas y Protocolos</span>
+          <span style="font-size: 10px; color: var(--green);">CAP 1.2 OASIS</span>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 6px; margin-top: 8px;">
+          <div style="display: flex; gap: 6px;">
+            <a href="/api/export/csv" download="sismo_eventos.csv" class="btn-reset" style="flex: 1; text-decoration: none; padding: 8px 10px; font-size: 11px; text-align: center; border-radius: 6px; background: #1e293b; color: #38bdf8; display: flex; align-items: center; justify-content: center; gap: 4px;">
+              📊 Exportar CSV
+            </a>
+            <button onclick="window.print()" style="flex: 1; padding: 8px 10px; font-size: 11px; border-radius: 6px; background: #1e293b; color: #f59e0b; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 4px;">
+              🖨️ Imprimir / PDF
+            </button>
+          </div>
+          <div style="display: flex; gap: 6px;">
+            <a href="/api/cap/feed.xml" target="_blank" style="flex: 1; text-decoration: none; padding: 8px 10px; font-size: 11px; text-align: center; border-radius: 6px; background: #1e293b; color: #a78bfa; display: flex; align-items: center; justify-content: center; gap: 4px;">
+              🌐 Feed CAP 1.2 XML
+            </a>
+            <button onclick="testTelegramAlert()" style="flex: 1; padding: 8px 10px; font-size: 11px; border-radius: 6px; background: #1e293b; color: #0284c7; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 4px;">
+              ✈️ Test Telegram
+            </button>
+          </div>
         </div>
       </div>
 
@@ -361,23 +394,54 @@
       </div>
     </div>
 
-    <!-- COLUMNA 2: SISMÓGRAFO EN VIVO -->
-    <div class="card col-chart" style="display: flex; flex-direction: column;">
-      <div class="card-title">
-        <span>Sismógrafo en Vivo (Aceleración Pico del Suelo - PGA)</span>
-        <span id="currentPgaBadge" style="color: var(--blue); font-weight: 700;">0.002 g</span>
+    <!-- COLUMNA 2: SISMÓGRAFO Y MAPA COMUNITARIO EN VIVO -->
+    <div class="card col-chart" style="display: flex; flex-direction: column; gap: 14px;">
+      
+      <!-- BANNER DE LEAD TIME (TIEMPO DE ADVERTENCIA PREVIA) -->
+      <div id="leadTimeBanner" style="display: none; background: linear-gradient(135deg, rgba(239,68,68,0.2) 0%, rgba(249,115,22,0.2) 100%); border: 2px solid var(--red); border-radius: 10px; padding: 12px; align-items: center; justify-content: space-between; box-shadow: 0 0 25px rgba(239,68,68,0.4); animation: pulseRed 0.8s infinite alternate;">
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <span style="font-size: 28px;">⏱️</span>
+          <div>
+            <div style="font-size: 13px; font-weight: 800; color: var(--red); letter-spacing: 0.5px;">ALERTA TEMPRANA: TIEMPO DE ADVERTENCIA PREVIA (LEAD TIME)</div>
+            <div id="leadTimeInfo" style="font-size: 11.5px; color: var(--text);">Calculando arribo de onda destructiva S...</div>
+          </div>
+        </div>
+        <div style="text-align: right;">
+          <div id="leadTimeCountdown" style="font-size: 32px; font-weight: 900; color: var(--red); font-family: monospace;">--s</div>
+          <div style="font-size: 10px; color: var(--text-muted);">PARA IMPACTO</div>
+        </div>
       </div>
-      <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 6px;">
-        Flujo de aceleración transmitido por los acelerómetros MEMS a 50Hz. Las sacudidas superando 0.05g disparan pre-alerta.
-      </p>
-      <div class="chart-container" style="flex: 1;">
-        <canvas id="seismograph"></canvas>
+
+      <!-- SISMÓGRAFO EN VIVO -->
+      <div>
+        <div class="card-title">
+          <span>Sismógrafo en Vivo (Aceleración Pico del Suelo - PGA)</span>
+          <span id="currentPgaBadge" style="color: var(--blue); font-weight: 700;">0.002 g</span>
+        </div>
+        <div class="chart-container" style="height: 190px !important;">
+          <canvas id="seismograph"></canvas>
+        </div>
+        <div style="margin-top: 8px; display: flex; justify-content: space-between; font-size: 11px; color: var(--text-muted); border-top: 1px solid var(--border); padding-top: 6px;">
+          <span>Filtro: 1 - 20 Hz</span>
+          <span>Algoritmo: STA/LTA (Ventana: 1s/10s)</span>
+          <span id="triggerCount">Triggers: 0</span>
+        </div>
       </div>
-      <div style="margin-top: 12px; display: flex; justify-content: space-between; font-size: 11.5px; color: var(--text-muted); border-top: 1px solid var(--border); padding-top: 8px;">
-        <span>Filtro Pasa-bandas: 1 - 20 Hz</span>
-        <span>Algoritmo: STA/LTA (Ventana: 1s / 10s)</span>
-        <span id="triggerCount">Triggers: 0</span>
+
+      <!-- MAPA GEOGRÁFICO COMUNITARIO EN VIVO (LEAFLET / OSM) -->
+      <div style="border-top: 1px solid var(--border); padding-top: 12px;">
+        <div class="card-title">
+          <span>🗺️ Red Comunitaria en Vivo (Leaflet / OpenStreetMap)</span>
+          <span id="mapStatusBadge" style="color: var(--green); font-size: 11px;">● 0 Sensores Georreferenciados</span>
+        </div>
+        <div id="communityMap" style="height: 240px; width: 100%; border-radius: 10px; border: 1px solid var(--border); background: #0f172a;"></div>
+        <div style="margin-top: 6px; font-size: 11px; color: var(--text-muted); display: flex; justify-content: space-between;">
+          <span>🟢 Teléfono en reposo</span>
+          <span>🔴 Nodo disparado (Onda P detectada)</span>
+          <span>⭐ Epicentro triangulado</span>
+        </div>
       </div>
+
     </div>
 
     <!-- COLUMNA 3: TELÉFONOS EN LA RED Y EVENTOS -->
@@ -507,6 +571,141 @@
 
     let isDrillActive = false;
 
+    // INICIALIZACIÓN DEL MAPA LEAFLET (OPENSTREETMAP / CARTO DARK)
+    let map = null;
+    let nodeMarkers = {};
+    let epicenterMarker = null;
+    let sWaveCircle = null;
+    let leadTimeTimer = null;
+
+    function initMap() {
+      try {
+        // Centrado en Centroamérica (Managua / San Salvador)
+        map = L.map('communityMap', {
+          zoomControl: false,
+          attributionControl: false
+        }).setView([12.1364, -86.2514], 11);
+
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+          maxZoom: 19,
+          subdomains: 'abcd'
+        }).addTo(map);
+
+        L.control.zoom({ position: 'bottomright' }).addTo(map);
+      } catch (err) {
+        console.warn('Error inicializando Leaflet:', err);
+      }
+    }
+    // Inicializar mapa al cargar
+    setTimeout(initMap, 200);
+
+    function updateMapNodes(nodes) {
+      if (!map) return;
+      const count = Object.keys(nodes).length;
+      document.getElementById('mapStatusBadge').innerText = `● ${count} Sensores Georreferenciados`;
+
+      // Actualizar o crear marcador por cada nodo
+      for (const [id, n] of Object.entries(nodes)) {
+        const lat = n.lat || (12.1364 + (Math.sin(id.charCodeAt(0)) * 0.05));
+        const lng = n.lng || (-86.2514 + (Math.cos(id.charCodeAt(0)) * 0.05));
+        const isTriggered = n.is_triggered;
+        const color = isTriggered ? '#ef4444' : '#10b981';
+
+        if (!nodeMarkers[id]) {
+          const marker = L.circleMarker([lat, lng], {
+            radius: isTriggered ? 12 : 7,
+            color: color,
+            fillColor: color,
+            fillOpacity: 0.85,
+            weight: 2
+          }).addTo(map);
+
+          marker.bindPopup(`<b>${n.node_id}</b><br>${n.place || 'Zona Comunitaria'}<br>PGA: ${(n.pga || 0).toFixed(4)} g<br>Bat: ${n.battery || 100}%`);
+          nodeMarkers[id] = marker;
+        } else {
+          nodeMarkers[id].setLatLng([lat, lng]);
+          nodeMarkers[id].setStyle({
+            radius: isTriggered ? 12 : 7,
+            color: color,
+            fillColor: color
+          });
+          nodeMarkers[id].setPopupContent(`<b>${n.node_id}</b><br>${n.place || 'Zona Comunitaria'}<br>PGA: ${(n.pga || 0).toFixed(4)} g<br>Bat: ${n.battery || 100}%`);
+        }
+      }
+
+      // Eliminar marcadores huérfanos
+      for (const id in nodeMarkers) {
+        if (!nodes[id]) {
+          map.removeLayer(nodeMarkers[id]);
+          delete nodeMarkers[id];
+        }
+      }
+    }
+
+    function drawEpicenterOnMap(lat, lng, mag, leadSec) {
+      if (!map) return;
+      if (epicenterMarker) map.removeLayer(epicenterMarker);
+      if (sWaveCircle) map.removeLayer(sWaveCircle);
+
+      // Icono de estrella/epicentro
+      epicenterMarker = L.circleMarker([lat, lng], {
+        radius: 14,
+        color: '#fbbf24',
+        fillColor: '#ef4444',
+        fillOpacity: 0.9,
+        weight: 3
+      }).addTo(map);
+      epicenterMarker.bindPopup(`<b>⭐ EPICENTRO TRIANGULADO</b><br>Magnitud: M${mag}<br>Tiempo de Llegada Onda S: ${leadSec}s`).openPopup();
+
+      // Círculo animado simulando frente de Onda S (3.5 km/s)
+      sWaveCircle = L.circle([lat, lng], {
+        radius: 1000,
+        color: '#ef4444',
+        fillColor: 'transparent',
+        weight: 2,
+        dashArray: '4, 4'
+      }).addTo(map);
+
+      let radius = 1000;
+      const expandInterval = setInterval(() => {
+        if (!sWaveCircle) {
+          clearInterval(expandInterval);
+          return;
+        }
+        radius += 3500; // expande ~3.5km por ciclo
+        sWaveCircle.setRadius(radius);
+        if (radius > 45000) {
+          clearInterval(expandInterval);
+        }
+      }, 1000);
+
+      map.panTo([lat, lng]);
+    }
+
+    function startLeadTimeCountdown(seconds, distKm) {
+      if (leadTimeTimer) clearInterval(leadTimeTimer);
+      const banner = document.getElementById('leadTimeBanner');
+      const countEl = document.getElementById('leadTimeCountdown');
+      const infoEl = document.getElementById('leadTimeInfo');
+
+      banner.style.display = 'flex';
+      let remaining = Math.round(seconds);
+      infoEl.innerText = `Onda S destructiva aproximándose (Epicentro a ${distKm || 15} km). ¡REPLIEGUE A ZONA SEGURA!`;
+      countEl.innerText = `${remaining}s`;
+
+      leadTimeTimer = setInterval(() => {
+        remaining -= 1;
+        if (remaining <= 0) {
+          clearInterval(leadTimeTimer);
+          countEl.innerText = '¡IMPACTO!';
+          countEl.style.color = '#ef4444';
+          setTimeout(() => { banner.style.display = 'none'; }, 8000);
+        } else {
+          countEl.innerText = `${remaining}s`;
+        }
+      }, 1000);
+    }
+
     // CONEXIÓN WEBSOCKET AL SERVIDOR
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const wsUrl = `${protocol}//${window.location.host}/ws/dashboard`;
@@ -547,21 +746,35 @@
         }
         chart.update();
 
-        // Actualizar lista de nodos
+        // Actualizar lista de nodos y mapa
         renderNodes(msg.system_state.nodes);
+        updateMapNodes(msg.system_state.nodes);
 
         // Si hay consenso sísmico
         if (msg.consensus_event) {
-          triggerAlarmUI(msg.consensus_event.estimated_magnitude);
+          const evt = msg.consensus_event;
+          triggerAlarmUI(evt.estimated_magnitude);
+          if (evt.epicenter_lat && evt.epicenter_lng) {
+            drawEpicenterOnMap(evt.epicenter_lat, evt.epicenter_lng, evt.estimated_magnitude, evt.lead_time_seconds);
+          }
+          if (evt.lead_time_seconds) {
+            startLeadTimeCountdown(evt.lead_time_seconds, evt.distance_km);
+          }
         }
       } else if (msg.type === 'drill_alert') {
         if (msg.action === 'start') {
           setDrillUI(msg.simulated_magnitude);
+          drawEpicenterOnMap(12.1364, -86.2514, msg.simulated_magnitude, 18.0);
+          startLeadTimeCountdown(18.0, 15.0);
         } else {
           setNormalUI();
+          if (epicenterMarker && map) map.removeLayer(epicenterMarker);
+          if (sWaveCircle && map) map.removeLayer(sWaveCircle);
+          document.getElementById('leadTimeBanner').style.display = 'none';
         }
       } else if (msg.type === 'init_state') {
         renderNodes(msg.system_state.nodes);
+        updateMapNodes(msg.system_state.nodes);
         if (msg.system_state.active_drill) {
           setDrillUI(6.8);
         }
@@ -644,6 +857,74 @@
         body: JSON.stringify({ action: 'stop' })
       });
       setNormalUI();
+    }
+
+    async function testTelegramAlert() {
+      try {
+        const resp = await fetch('/api/alert/telegram', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message: '🚨 [SISMO-PREV] Prueba de Alerta Temprana Sísmica a la Comunidad.' })
+        });
+        const res = await resp.json();
+        alert(res.status === 'sent' ? '✅ Notificación enviada a Telegram con éxito.' : 'ℹ️ ' + (res.message || 'Telegram configurado en modo pasivo. Ingrese TELEGRAM_BOT_TOKEN en el servidor.'));
+      } catch (e) {
+        alert('Error conectando con el servicio de alertas.');
+      }
+    }
+
+    // MEGAFONÍA DE EMERGENCIA (AUDIO IP / WEBSOCKET STREAMING)
+    let isBroadcastingAudio = false;
+    let micMediaStream = null;
+    let audioRecordProcessor = null;
+
+    async function toggleEmergencyBroadcast() {
+      const btn = document.getElementById('btnMegaphone');
+      if (!isBroadcastingAudio) {
+        try {
+          micMediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 16000 });
+          if (audioCtx.state === 'suspended') await audioCtx.resume();
+
+          const source = audioCtx.createMediaStreamSource(micMediaStream);
+          // ScriptProcessor para capturar buffers PCM de voz y emitirlos por WS
+          audioRecordProcessor = audioCtx.createScriptProcessor(2048, 1, 1);
+          
+          source.connect(audioRecordProcessor);
+          audioRecordProcessor.connect(audioCtx.destination);
+
+          audioRecordProcessor.onaudioprocess = (e) => {
+            if (!isBroadcastingAudio || !socket || socket.readyState !== WebSocket.OPEN) return;
+            const inputData = e.inputBuffer.getChannelData(0);
+            // Convertir float32 a int16 para transmisión liviana
+            const pcm16 = new Int16Array(inputData.length);
+            for (let i = 0; i < inputData.length; i++) {
+              let s = Math.max(-1, Math.min(1, inputData[i]));
+              pcm16[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
+            }
+            // Enviar paquete binario de megafonía
+            socket.send(pcm16.buffer);
+          };
+
+          isBroadcastingAudio = true;
+          btn.style.background = '#059669';
+          btn.innerText = '🔴 Transmitiendo Voz en Vivo...';
+        } catch (err) {
+          alert('No se pudo acceder al micrófono para la megafonía: ' + err.message);
+        }
+      } else {
+        isBroadcastingAudio = false;
+        if (micMediaStream) {
+          micMediaStream.getTracks().forEach(t => t.stop());
+          micMediaStream = null;
+        }
+        if (audioRecordProcessor) {
+          audioRecordProcessor.disconnect();
+          audioRecordProcessor = null;
+        }
+        btn.style.background = '#e11d48';
+        btn.innerText = '🎙️ Megafonía IP a Teléfonos';
+      }
     }
 
     async function requestAiAnalysis() {
