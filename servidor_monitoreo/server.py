@@ -77,35 +77,62 @@ system_state = {
 }
 
 async def fetch_usgs_central_america_earthquakes():
-    """Consulta periódica del feed oficial de USGS para sismos en Centroamérica (últimos 7 días)."""
-    url = "https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_week.geojson"
+    """Consulta periódica del feed oficial de USGS priorizando sismos de Nicaragua y Centroamérica."""
+    ca_quakes = []
+    seen_ids = set()
+
+    # 1. Consultar específicamente sismos en las coordenadas de Nicaragua (FDSNWS USGS)
     try:
-        resp = requests.get(url, timeout=8)
-        if resp.status_code == 200:
-            data = resp.json()
-            features = data.get("features", [])
-            # Filtrar coordenadas de Centroamérica: Lat 7.0 a 18.0, Lng -94.0 a -77.0
-            ca_quakes = []
-            for f in features:
+        url_nic = "https://earthquake.usgs.gov/fdsnws/event/1/query?format=geojson&minmagnitude=2.0&minlatitude=10.5&maxlatitude=15.2&minlongitude=-88.0&maxlongitude=-82.5&limit=15"
+        resp_nic = requests.get(url_nic, timeout=6)
+        if resp_nic.status_code == 200:
+            for f in resp_nic.json().get("features", []):
+                fid = f.get("id")
                 coords = f.get("geometry", {}).get("coordinates", [])
-                if len(coords) >= 2:
+                if len(coords) >= 2 and fid not in seen_ids:
+                    seen_ids.add(fid)
+                    props = f.get("properties", {})
+                    ca_quakes.append({
+                        "id": fid,
+                        "mag": props.get("mag"),
+                        "place": props.get("place"),
+                        "time": props.get("time"),
+                        "lat": round(coords[1], 4),
+                        "lng": round(coords[0], 4),
+                        "depth_km": round(coords[2] if len(coords) > 2 else 10.0, 1),
+                        "source": "USGS / Nicaragua 🇳🇮"
+                    })
+    except Exception:
+        pass
+
+    # 2. Consultar feed semanal de Centroamérica para cobertura regional completa
+    try:
+        url_week = "https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_week.geojson"
+        resp_week = requests.get(url_week, timeout=8)
+        if resp_week.status_code == 200:
+            for f in resp_week.json().get("features", []):
+                fid = f.get("id")
+                coords = f.get("geometry", {}).get("coordinates", [])
+                if len(coords) >= 2 and fid not in seen_ids:
                     lng, lat = coords[0], coords[1]
-                    depth = coords[2] if len(coords) > 2 else 10.0
                     if 7.0 <= lat <= 18.0 and -94.0 <= lng <= -77.0:
+                        seen_ids.add(fid)
                         props = f.get("properties", {})
                         ca_quakes.append({
-                            "id": f.get("id"),
+                            "id": fid,
                             "mag": props.get("mag"),
                             "place": props.get("place"),
                             "time": props.get("time"),
                             "lat": round(lat, 4),
                             "lng": round(lng, 4),
-                            "depth_km": round(depth, 1),
-                            "source": "USGS / Global Network"
+                            "depth_km": round(coords[2] if len(coords) > 2 else 10.0, 1),
+                            "source": "USGS / Centroamérica"
                         })
-            system_state["public_seismic_feed"] = ca_quakes[:30]
     except Exception:
         pass
+
+    if ca_quakes:
+        system_state["public_seismic_feed"] = ca_quakes[:35]
 
 async def background_public_seismic_worker():
     """Hilo asíncrono para mantener actualizadas las alertas de redes públicas cada 60s."""

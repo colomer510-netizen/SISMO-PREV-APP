@@ -606,40 +606,46 @@
         publicQuakeMarkers.forEach(m => map.removeLayer(m));
         publicQuakeMarkers = [];
 
+        let nicQuakesCount = 0;
+
         quakes.forEach(q => {
           if (!q.lat || !q.lng) return;
           const mag = q.mag || 4.0;
-          const radius = Math.max(8, Math.min(22, (mag - 3.5) * 8 + 8));
+          const isNic = (q.source && q.source.includes('Nicaragua')) || (q.place && q.place.toLowerCase().includes('nicaragua'));
+          if (isNic) nicQuakesCount++;
+
+          const radius = isNic ? Math.max(10, Math.min(24, (mag - 3.5) * 8 + 10)) : Math.max(7, Math.min(18, (mag - 3.5) * 7 + 7));
           const dateStr = q.time ? new Date(q.time).toLocaleTimeString() : 'Reciente';
 
-          // Marcador pulsante para sismos oficiales USGS
+          // Diferenciar sismos directos en Nicaragua de los del resto de Centroamérica
           const marker = L.circleMarker([q.lat, q.lng], {
             radius: radius,
-            color: '#c2410c',
-            fillColor: '#f97316',
-            fillOpacity: 0.85,
-            weight: 2
+            color: isNic ? '#b91c1c' : '#c2410c',
+            fillColor: isNic ? '#ef4444' : '#f97316',
+            fillOpacity: isNic ? 0.95 : 0.75,
+            weight: isNic ? 3 : 2
           }).addTo(map);
 
           marker.bindPopup(`
-            <div style="font-family: sans-serif; font-size: 12px; min-width: 170px;">
-              <div style="font-weight: 800; color: #ea580c; border-bottom: 1px solid #fed7aa; padding-bottom: 3px; margin-bottom: 4px;">
-                🌐 RED OFICIAL USGS
+            <div style="font-family: sans-serif; font-size: 12px; min-width: 185px;">
+              <div style="font-weight: 800; color: ${isNic ? '#b91c1c' : '#ea580c'}; border-bottom: 1px solid #fed7aa; padding-bottom: 3px; margin-bottom: 4px;">
+                ${isNic ? '🇳🇮 NICARAGUA (RED OFICIAL)' : '🌐 CENTROAMÉRICA (USGS)'}
               </div>
-              <b>Magnitud:</b> <span style="color: #ea580c; font-weight: bold;">M${mag}</span><br>
-              <b>Epicentro:</b> ${q.place || 'Centroamérica'}<br>
+              <b>Magnitud:</b> <span style="color: ${isNic ? '#b91c1c' : '#ea580c'}; font-weight: bold;">M${mag}</span><br>
+              <b>Epicentro:</b> ${q.place || 'Zona Regional'}<br>
               <b>Profundidad:</b> ${q.depth_km} km<br>
+              <b>Fuente:</b> ${q.source || 'USGS'}<br>
               <b>Hora:</b> ${dateStr}
             </div>
           `);
           publicQuakeMarkers.push(marker);
         });
 
-        // Actualizar badge con número de sismos monitoreados
+        // Actualizar badge con desglose de Nicaragua
         const badge = document.getElementById('mapStatusBadge');
         if (badge) {
           const nodeCount = Object.keys(nodeMarkers).length;
-          badge.innerText = `● ${nodeCount} Sensores Móviles | 🟠 ${quakes.length} Sismos Oficiales (USGS)`;
+          badge.innerText = `● ${nodeCount} Sensores | 🇳🇮 ${nicQuakesCount} Sismos en Nicaragua | 🟠 ${quakes.length} Región`;
         }
       } catch (e) {
         console.warn('Error obteniendo sismos públicos:', e);
