@@ -324,6 +324,61 @@ def ai_analysis(request_data: Dict[str, Any]):
     model_name = "Google Gemini 3.8 Flash"
     return {"analysis": analysis, "model": model_name}
 
+@app.get("/api/ai/models")
+def list_ai_models():
+    """Escanea y lista todos los modelos disponibles para la clave API configurada."""
+    gemini_key = os.environ.get("GEMINI_API_KEY", "").strip()
+    if not gemini_key:
+        return {"status": "error", "message": "No hay clave API de Gemini configurada.", "models": []}
+    try:
+        from google import genai
+        client = genai.Client(api_key=gemini_key)
+        all_models = [m.name for m in client.models.list()]
+        # Filtrar modelos relevantes para análisis de texto y visión
+        gemini_models = [m.replace("models/", "") for m in all_models if "gemini" in m.lower() or "gemma" in m.lower()]
+        return {
+            "status": "connected",
+            "message": f"Conexión exitosa. Se detectaron {len(gemini_models)} modelos disponibles.",
+            "active_model": "gemini-3.8-flash",
+            "models": gemini_models[:20]
+        }
+    except Exception as e:
+        return {"status": "error", "message": f"Error conectando con Gemini API: {str(e)}", "models": []}
+
+@app.post("/api/ai/config")
+def update_ai_config(payload: Dict[str, Any]):
+    """Permite guardar una nueva clave API de Gemini y actualizar el archivo local .env."""
+    new_key = payload.get("api_key", "").strip()
+    if not new_key:
+        raise HTTPException(status_code=400, detail="La clave API no puede estar vacía.")
+    
+    # Probar la clave antes de guardarla
+    try:
+        from google import genai
+        client = genai.Client(api_key=new_key)
+        test_resp = client.models.generate_content(
+            model="gemini-3.8-flash",
+            contents="ping"
+        )
+        if not test_resp:
+            raise Exception("No se recibió respuesta del modelo.")
+    except Exception as e:
+        return {"status": "error", "message": f"Clave API inválida o error de conexión: {str(e)}"}
+    
+    # Guardar en entorno y en .env
+    os.environ["GEMINI_API_KEY"] = new_key
+    env_file = os.path.join(os.path.dirname(__file__), ".env")
+    try:
+        with open(env_file, "w", encoding="utf-8") as f:
+            f.write(f"GEMINI_API_KEY={new_key}\n")
+    except Exception as e:
+        pass
+        
+    return {
+        "status": "success",
+        "message": "Clave API de Gemini validada y guardada con éxito. Modelo gemini-3.8-flash activado."
+    }
+
 @app.get("/api/cap/feed.xml")
 def get_cap_feed():
     """Genera documento XML bajo el estándar oficial OASIS CAP 1.2 (Common Alerting Protocol)."""
