@@ -455,10 +455,11 @@
           <span id="mapStatusBadge" style="color: var(--green); font-size: 11px;">● 0 Sensores Georreferenciados</span>
         </div>
         <div id="communityMap" style="height: 240px; width: 100%; border-radius: 10px; border: 1px solid var(--border); background: #0f172a;"></div>
-        <div style="margin-top: 6px; font-size: 11px; color: var(--text-muted); display: flex; justify-content: space-between;">
-          <span>🟢 Teléfono en reposo</span>
-          <span>🔴 Nodo disparado (Onda P detectada)</span>
-          <span>⭐ Epicentro triangulado</span>
+        <div style="margin-top: 6px; font-size: 11px; color: var(--text-muted); display: flex; justify-content: space-between; flex-wrap: wrap; gap: 6px;">
+          <span>🟢 Smartphone Reposo</span>
+          <span>🔴 Sensor Disparado</span>
+          <span>🟠 Red Pública Externa (USGS)</span>
+          <span>⭐ Epicentro Triangulado</span>
         </div>
       </div>
 
@@ -591,12 +592,49 @@
 
     let isDrillActive = false;
 
-    // INICIALIZACIÓN DEL MAPA LEAFLET (OPENSTREETMAP / CARTO DARK)
-    let map = null;
-    let nodeMarkers = {};
-    let epicenterMarker = null;
-    let sWaveCircle = null;
-    let leadTimeTimer = null;
+    let publicQuakeMarkers = [];
+
+    async function fetchPublicEarthquakes() {
+      if (!map) return;
+      try {
+        const res = await fetch('/api/seismic/public');
+        if (!res.ok) return;
+        const data = await res.json();
+        const quakes = data.earthquakes || [];
+        
+        // Limpiar marcadores públicos previos
+        publicQuakeMarkers.forEach(m => map.removeLayer(m));
+        publicQuakeMarkers = [];
+
+        quakes.forEach(q => {
+          if (!q.lat || !q.lng) return;
+          const mag = q.mag || 4.0;
+          const radius = Math.max(6, Math.min(18, mag * 2.5));
+          const dateStr = q.time ? new Date(q.time).toLocaleTimeString() : 'Reciente';
+
+          const marker = L.circleMarker([q.lat, q.lng], {
+            radius: radius,
+            color: '#ea580c',
+            fillColor: '#f97316',
+            fillOpacity: 0.75,
+            weight: 2
+          }).addTo(map);
+
+          marker.bindPopup(`
+            <div style="font-family: sans-serif; font-size: 12px;">
+              <b style="color: #ea580c;">🌐 RED PÚBLICA OFICIAL (USGS)</b><br>
+              <b>Magnitud:</b> M${mag}<br>
+              <b>Lugar:</b> ${q.place || 'Centroamérica'}<br>
+              <b>Profundidad:</b> ${q.depth_km} km<br>
+              <b>Hora:</b> ${dateStr}
+            </div>
+          `);
+          publicQuakeMarkers.push(marker);
+        });
+      } catch (e) {
+        console.warn('Error obteniendo sismos públicos:', e);
+      }
+    }
 
     function initMap() {
       try {
@@ -604,7 +642,7 @@
         map = L.map('communityMap', {
           zoomControl: false,
           attributionControl: false
-        }).setView([12.1364, -86.2514], 11);
+        }).setView([12.1364, -86.2514], 10);
 
         // Capa OpenStreetMap 100% gratuita, pública y sin marcas de 'API KEY REQUIRED'
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -613,6 +651,10 @@
         }).addTo(map);
 
         L.control.zoom({ position: 'bottomright' }).addTo(map);
+
+        // Cargar sismos oficiales de USGS
+        fetchPublicEarthquakes();
+        setInterval(fetchPublicEarthquakes, 60000);
       } catch (err) {
         console.warn('Error inicializando Leaflet:', err);
       }

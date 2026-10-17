@@ -72,8 +72,46 @@ system_state = {
     "active_drill": False,
     "last_event": None,
     "nodes": {},
-    "event_history": []
+    "event_history": [],
+    "public_seismic_feed": []  # Sismos oficiales recientes de Centroamérica (USGS / EMSC)
 }
+
+async def fetch_usgs_central_america_earthquakes():
+    """Consulta periódica del feed oficial de USGS para sismos en Centroamérica."""
+    url = "https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_day.geojson"
+    try:
+        resp = requests.get(url, timeout=5)
+        if resp.status_code == 200:
+            data = resp.json()
+            features = data.get("features", [])
+            # Filtrar coordenadas de Centroamérica: Lat 7.0 a 18.0, Lng -94.0 a -77.0
+            ca_quakes = []
+            for f in features:
+                coords = f.get("geometry", {}).get("coordinates", [])
+                if len(coords) >= 2:
+                    lng, lat = coords[0], coords[1]
+                    depth = coords[2] if len(coords) > 2 else 10.0
+                    if 7.0 <= lat <= 18.0 and -94.0 <= lng <= -77.0:
+                        props = f.get("properties", {})
+                        ca_quakes.append({
+                            "id": f.get("id"),
+                            "mag": props.get("mag"),
+                            "place": props.get("place"),
+                            "time": props.get("time"),
+                            "lat": round(lat, 4),
+                            "lng": round(lng, 4),
+                            "depth_km": round(depth, 1),
+                            "source": "USGS / Global Network"
+                        })
+            system_state["public_seismic_feed"] = ca_quakes[:15]
+    except Exception:
+        pass
+
+async def background_public_seismic_worker():
+    """Hilo asíncrono para mantener actualizadas las alertas de redes públicas cada 60s."""
+    while True:
+        await fetch_usgs_central_america_earthquakes()
+        await asyncio.sleep(60)
 
 class TelemetryPayload(BaseModel):
     node_id: str
@@ -493,6 +531,20 @@ async def websocket_sensor(websocket: WebSocket, node_id: str):
             await receive_telemetry(payload)
     except WebSocketDisconnect:
         manager.disconnect_sensor(node_id)
+
+@app.on_event("startup")
+async def startup_event():
+    # Inicializar carga inmediata y arrancar tarea en segundo plano
+    asyncio.create_task(background_public_seismic_worker())
+
+@app.get("/api/seismic/public")
+def get_public_seismic_feed():
+    """Retorna los sismos oficiales recientes en Centroamérica detectados por USGS/EMSC."""
+    return JSONResponse({
+        "status": "ok",
+        "count": len(system_state.get("public_seismic_feed", [])),
+        "earthquakes": system_state.get("public_seismic_feed", [])
+    })
 
 @app.get("/", response_class=HTMLResponse)
 def get_dashboard():
