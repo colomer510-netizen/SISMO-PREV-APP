@@ -95,16 +95,37 @@
       background: #0369a1;
     }
 
+    /* CONTENEDOR PRINCIPAL FLUIDO */
+    .dashboard-wrapper {
+      max-width: 1440px;
+      margin: 0 auto;
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+    }
+
     /* GRID ADAPTABLE / RESPONSIVE */
     .grid {
       display: grid;
       grid-template-columns: minmax(280px, 340px) 1fr minmax(280px, 340px);
       gap: 16px;
       flex: 1;
+      width: 100%;
     }
 
-    /* En Tablets y Laptops pequeñas */
-    @media (max-width: 1100px) {
+    /* EN PANTALLAS GRANDES Y MONITORES DE ESCRITORIO (>= 1200px) */
+    @media (min-width: 1200px) {
+      .grid {
+        grid-template-columns: 320px 1fr 340px;
+      }
+      .chart-container {
+        height: 320px !important;
+      }
+    }
+
+    /* EN TABLETS Y LAPTOPS MEDIANAS (769px a 1199px) */
+    @media (max-width: 1199px) and (min-width: 769px) {
       .grid {
         grid-template-columns: 1fr 1fr;
       }
@@ -112,38 +133,77 @@
         grid-column: span 2;
         order: -1;
       }
+      .chart-container {
+        height: 280px !important;
+      }
     }
 
-    /* En Celulares y Pantallas Estrechas */
+    /* EN CELULARES Y PANTALLAS MÓVILES (<= 768px) */
     @media (max-width: 768px) {
       body {
-        padding: 10px;
+        padding: 8px 10px;
       }
       header {
         flex-direction: column;
-        align-items: flex-start;
+        align-items: stretch;
+        gap: 10px;
+        padding-bottom: 12px;
+      }
+      .brand {
+        justify-content: flex-start;
       }
       .header-actions {
         width: 100%;
+        display: flex;
         justify-content: space-between;
+        align-items: center;
       }
       .grid {
         grid-template-columns: 1fr;
-        gap: 12px;
+        gap: 14px;
+        display: flex;
+        flex-direction: column;
       }
       .col-chart {
-        grid-column: span 1;
-        order: 0;
+        order: -1; /* El sismógrafo se ve primero en el teléfono */
       }
       .chart-container {
-        height: 220px !important;
+        height: 210px !important;
       }
       .btn-group {
-        flex-direction: column;
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 8px;
       }
       button {
         width: 100%;
-        padding: 12px 14px;
+        padding: 14px 16px;
+        font-size: 14px;
+      }
+      .card {
+        padding: 14px;
+      }
+      #nodesList, #eventsList {
+        max-height: 180px !important;
+      }
+    }
+
+    /* PANTALLAS ULTRA COMPACTAS (< 400px) */
+    @media (max-width: 400px) {
+      .brand h1 {
+        font-size: 16px;
+      }
+      .brand img {
+        height: 38px;
+      }
+      .btn-download-apk {
+        padding: 6px 10px;
+        font-size: 11px;
+      }
+      .light-badge {
+        width: 85px;
+        height: 85px;
+        font-size: 30px;
       }
     }
 
@@ -250,23 +310,23 @@
   </style>
 </head>
 <body>
-
-  <header>
-    <div class="brand">
-      <img src="/logo.png" alt="SismoPrev Logo">
-      <div>
-        <h1>SISMO-PREV — Monitoreo Sísmico</h1>
-        <p>Red Distribuida de Sensores Móviles • Rally 2026</p>
+  <div class="dashboard-wrapper">
+    <header>
+      <div class="brand">
+        <img src="/logo.png" alt="SismoPrev Logo">
+        <div>
+          <h1>SISMO-PREV — Monitoreo Sísmico</h1>
+          <p>Red Distribuida de Sensores Móviles • Rally 2026</p>
+        </div>
       </div>
-    </div>
-    <div class="header-actions">
-      <a href="/descargar-apk" class="btn-download-apk">📥 Descargar APK</a>
-      <span id="connStatus" style="font-size: 12px; color: var(--green); font-weight: 600;">● En Vivo</span>
-      <span style="font-size: 12px; color: var(--text-muted);" id="clock">00:00:00</span>
-    </div>
-  </header>
+      <div class="header-actions">
+        <a href="/descargar-apk" class="btn-download-apk">📥 Descargar APK</a>
+        <span id="connStatus" style="font-size: 12px; color: var(--green); font-weight: 600;">● En Vivo</span>
+        <span style="font-size: 12px; color: var(--text-muted);" id="clock">00:00:00</span>
+      </div>
+    </header>
 
-  <div class="grid">
+    <div class="grid">
     
     <!-- COLUMNA 1: SEMÁFORO Y SIMULACRO -->
     <div style="display: flex; flex-direction: column; gap: 16px;">
@@ -344,6 +404,7 @@
       </div>
     </div>
 
+  </div>
   </div>
 
   <script>
