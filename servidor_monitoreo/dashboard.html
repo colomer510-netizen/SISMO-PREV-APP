@@ -609,28 +609,38 @@
         quakes.forEach(q => {
           if (!q.lat || !q.lng) return;
           const mag = q.mag || 4.0;
-          const radius = Math.max(6, Math.min(18, mag * 2.5));
+          const radius = Math.max(8, Math.min(22, (mag - 3.5) * 8 + 8));
           const dateStr = q.time ? new Date(q.time).toLocaleTimeString() : 'Reciente';
 
+          // Marcador pulsante para sismos oficiales USGS
           const marker = L.circleMarker([q.lat, q.lng], {
             radius: radius,
-            color: '#ea580c',
+            color: '#c2410c',
             fillColor: '#f97316',
-            fillOpacity: 0.75,
+            fillOpacity: 0.85,
             weight: 2
           }).addTo(map);
 
           marker.bindPopup(`
-            <div style="font-family: sans-serif; font-size: 12px;">
-              <b style="color: #ea580c;">🌐 RED PÚBLICA OFICIAL (USGS)</b><br>
-              <b>Magnitud:</b> M${mag}<br>
-              <b>Lugar:</b> ${q.place || 'Centroamérica'}<br>
+            <div style="font-family: sans-serif; font-size: 12px; min-width: 170px;">
+              <div style="font-weight: 800; color: #ea580c; border-bottom: 1px solid #fed7aa; padding-bottom: 3px; margin-bottom: 4px;">
+                🌐 RED OFICIAL USGS
+              </div>
+              <b>Magnitud:</b> <span style="color: #ea580c; font-weight: bold;">M${mag}</span><br>
+              <b>Epicentro:</b> ${q.place || 'Centroamérica'}<br>
               <b>Profundidad:</b> ${q.depth_km} km<br>
               <b>Hora:</b> ${dateStr}
             </div>
           `);
           publicQuakeMarkers.push(marker);
         });
+
+        // Actualizar badge con número de sismos monitoreados
+        const badge = document.getElementById('mapStatusBadge');
+        if (badge) {
+          const nodeCount = Object.keys(nodeMarkers).length;
+          badge.innerText = `● ${nodeCount} Sensores Móviles | 🟠 ${quakes.length} Sismos Oficiales (USGS)`;
+        }
       } catch (e) {
         console.warn('Error obteniendo sismos públicos:', e);
       }
@@ -638,11 +648,11 @@
 
     function initMap() {
       try {
-        // Centrado en Centroamérica (Managua / San Salvador)
+        // Vista regional completa de Centroamérica (Nicaragua, El Salvador, Costa Rica, Honduras, Guatemala)
         map = L.map('communityMap', {
           zoomControl: false,
           attributionControl: false
-        }).setView([12.1364, -86.2514], 10);
+        }).setView([12.8, -86.5], 6);
 
         // Capa OpenStreetMap 100% gratuita, pública y sin marcas de 'API KEY REQUIRED'
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -651,6 +661,11 @@
         }).addTo(map);
 
         L.control.zoom({ position: 'bottomright' }).addTo(map);
+
+        // Forzar cálculo de dimensiones de contenedor Leaflet
+        setTimeout(() => {
+          if (map) map.invalidateSize();
+        }, 300);
 
         // Cargar sismos oficiales de USGS
         fetchPublicEarthquakes();

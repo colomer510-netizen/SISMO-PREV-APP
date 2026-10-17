@@ -77,10 +77,10 @@ system_state = {
 }
 
 async def fetch_usgs_central_america_earthquakes():
-    """Consulta periódica del feed oficial de USGS para sismos en Centroamérica."""
-    url = "https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_day.geojson"
+    """Consulta periódica del feed oficial de USGS para sismos en Centroamérica (últimos 7 días)."""
+    url = "https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_week.geojson"
     try:
-        resp = requests.get(url, timeout=5)
+        resp = requests.get(url, timeout=8)
         if resp.status_code == 200:
             data = resp.json()
             features = data.get("features", [])
@@ -103,7 +103,7 @@ async def fetch_usgs_central_america_earthquakes():
                             "depth_km": round(depth, 1),
                             "source": "USGS / Global Network"
                         })
-            system_state["public_seismic_feed"] = ca_quakes[:15]
+            system_state["public_seismic_feed"] = ca_quakes[:30]
     except Exception:
         pass
 
