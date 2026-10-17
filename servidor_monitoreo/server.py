@@ -185,7 +185,13 @@ async def receive_telemetry(data: TelemetryPayload):
         "system_state": system_state,
         "consensus_event": consensus_event
     })
-    return {"status": "ok", "consensus": consensus_event is not None}
+    return {
+        "status": "ok",
+        "active_drill": system_state["active_drill"],
+        "threat_level": system_state["threat_level"],
+        "system_status": system_state["status"],
+        "consensus": consensus_event is not None
+    }
 
 @app.post("/api/drill")
 async def control_drill(drill: DrillControlPayload):

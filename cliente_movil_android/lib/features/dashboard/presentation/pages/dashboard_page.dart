@@ -20,6 +20,8 @@ import '../../../../core/theme/app_typography.dart';
 import 'dart:async';
 import 'dart:math';
 import 'package:sensors_plus/sensors_plus.dart';
+import 'package:audioplayers/audioplayers.dart';
+import 'package:vibration/vibration.dart';
 import '../../../../features/seismic_detection/domain/usecases/sta_lta_trigger.dart';
 import '../../../../features/seismic_detection/data/datasources/telemetry_service.dart';
 
@@ -54,8 +56,46 @@ class _DashboardPageState extends State<DashboardPage>
   int _connectedPeers = 0;
   final List<String> _activeChannels = ['tcp_ip'];
 
-  Timer? _drillAudioTimer;
   bool _isDrillAudioPlaying = false;
+  final AudioPlayer _audioPlayer = AudioPlayer();
+
+  Future<void> _activarAlarmaSonora() async {
+    if (_isDrillAudioPlaying) return;
+    setState(() {
+      _isDrillAudioPlaying = true;
+      _threatLevel = 'SIMULACRO';
+    });
+
+    try {
+      await _audioPlayer.setReleaseMode(ReleaseMode.loop);
+      await _audioPlayer.play(AssetSource('sounds/alarm_siren.wav'));
+    } catch (e) {
+      debugPrint('Error reproduciendo sonido de alarma: $e');
+    }
+
+    try {
+      final hasVibrator = await Vibration.hasVibrator();
+      if (hasVibrator == true) {
+        Vibration.vibrate(pattern: [500, 1000, 500, 1000], repeat: 0);
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _detenerAlarmaSonora() async {
+    if (!_isDrillAudioPlaying) return;
+    setState(() {
+      _isDrillAudioPlaying = false;
+      _threatLevel = 'NORMAL';
+    });
+
+    try {
+      await _audioPlayer.stop();
+    } catch (_) {}
+
+    try {
+      Vibration.cancel();
+    } catch (_) {}
+  }
 
   @override
   void initState() {
@@ -90,6 +130,14 @@ class _DashboardPageState extends State<DashboardPage>
       getCurrentPga: () => _currentPga,
       getCurrentRatio: () => _currentRatio,
       getIsTriggered: () => _isSeismicTriggered,
+      onServerCommand: (data) {
+        final activeDrill = data['active_drill'] == true;
+        if (activeDrill && !_isDrillAudioPlaying) {
+          _activarAlarmaSonora();
+        } else if (!activeDrill && _isDrillAudioPlaying) {
+          _detenerAlarmaSonora();
+        }
+      },
     );
   }
 
@@ -108,7 +156,9 @@ class _DashboardPageState extends State<DashboardPage>
           _currentRatio = result.ratio;
           _isSeismicTriggered = result.isTriggered;
 
-          if (_isSeismicTriggered || pga > 0.08) {
+          if (_isDrillAudioPlaying) {
+            _threatLevel = 'SIMULACRO';
+          } else if (_isSeismicTriggered || pga > 0.08) {
             _threatLevel = 'EVACUACION';
           } else if (pga > 0.02) {
             _threatLevel = 'ALERTA';
@@ -126,13 +176,6 @@ class _DashboardPageState extends State<DashboardPage>
           );
         }
       });
-
-      // Heartbeat cada 2s hacia el servidor
-      _telemetryService.startHeartbeat(
-        getCurrentPga: () => _currentPga,
-        getCurrentRatio: () => _currentRatio,
-        getIsTriggered: () => _isSeismicTriggered,
-      );
     } catch (e) {
       // Manejo seguro en entornos sin sensor físico
     }
@@ -143,6 +186,7 @@ class _DashboardPageState extends State<DashboardPage>
     _accelSub?.cancel();
     _telemetryService.stop();
     _pulseController.dispose();
+    _audioPlayer.dispose();
     super.dispose();
   }
 
@@ -638,15 +682,6 @@ class _DashboardPageState extends State<DashboardPage>
                 icon: Icons.map_rounded,
                 label: 'Mapa\nOffline',
                 color: AppColors.accent,
-                onTap: () {
-                  // TODO: Navegar a mapa offline
-                },
-              ),
-              const SizedBox(width: 12),
-              _buildActionButton(
-                icon: Icons.campaign_rounded,
-                label: 'Iniciar\nSimulacro',
-                color: AppColors.drillModeBorder,
                 onTap: _mostrarMapaOffline,
               ),
               const SizedBox(width: 12),
@@ -718,27 +753,28 @@ class _DashboardPageState extends State<DashboardPage>
   //  MODALES Y FUNCIONES INTERACTIVAS
   // ═══════════════════════════════════════════════════════════
 
-  void _toggleSimulacroSonoro() {
-    setState(() {
-      _isDrillAudioPlaying = !_isDrillAudioPlaying;
-      if (_isDrillAudioPlaying) {
-        _threatLevel = 'SIMULACRO';
-      } else {
-        _threatLevel = 'NORMAL';
-      }
-    });
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          _isDrillAudioPlaying
-              ? '🚨 ¡SIMULACRO ACTIVO! Alarma acústica y vibración activadas.'
-              : '✅ Simulacro finalizado. Sistema en reposo.',
+  void _toggleSimulacroSonoro() async {
+    if (_isDrillAudioPlaying) {
+      await _detenerAlarmaSonora();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('✅ Simulacro finalizado. Alarma silenciada.'),
+          backgroundColor: AppColors.statusActive,
+          duration: Duration(seconds: 3),
         ),
-        backgroundColor: _isDrillAudioPlaying ? AppColors.drillModeBorder : AppColors.statusActive,
-        duration: const Duration(seconds: 3),
-      ),
-    );
+      );
+    } else {
+      await _activarAlarmaSonora();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('🚨 ¡SIMULACRO ACTIVO! Alarma acústica y vibración sonando.'),
+          backgroundColor: AppColors.drillModeBorder,
+          duration: Duration(seconds: 3),
+        ),
+      );
+    }
   }
 
   void _toggleMesh() {

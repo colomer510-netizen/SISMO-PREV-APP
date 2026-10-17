@@ -23,6 +23,7 @@ class TelemetryService {
     required double Function() getCurrentPga,
     required double Function() getCurrentRatio,
     required bool Function() getIsTriggered,
+    void Function(Map<String, dynamic> data)? onServerCommand,
   }) {
     if (_isBroadcasting) return;
     _isBroadcasting = true;
@@ -32,16 +33,20 @@ class TelemetryService {
       final ratio = getCurrentRatio();
       final isTriggered = getIsTriggered();
 
-      await sendTelemetry(
+      final res = await sendTelemetryWithResponse(
         pga: pga,
         staLtaRatio: ratio,
         isTriggered: isTriggered,
       );
+
+      if (res != null && onServerCommand != null) {
+        onServerCommand(res);
+      }
     });
   }
 
-  /// Envía un paquete de telemetría inmediato (usado en ráfagas al detectar Onda P)
-  Future<bool> sendTelemetry({
+  /// Envía un paquete de telemetría inmediato y devuelve la respuesta del servidor
+  Future<Map<String, dynamic>?> sendTelemetryWithResponse({
     required double pga,
     required double staLtaRatio,
     required bool isTriggered,
@@ -65,11 +70,28 @@ class TelemetryService {
         body: jsonEncode(payload),
       ).timeout(const Duration(seconds: 2));
 
-      return resp.statusCode == 200;
+      if (resp.statusCode == 200) {
+        return jsonDecode(resp.body) as Map<String, dynamic>;
+      }
+      return null;
     } catch (e) {
       // Offline-First: si no hay conexión al servidor central, conmuta a BLE Mesh/SMS
-      return false;
+      return null;
     }
+  }
+
+  /// Envía un paquete de telemetría inmediato (usado en ráfagas al detectar Onda P)
+  Future<bool> sendTelemetry({
+    required double pga,
+    required double staLtaRatio,
+    required bool isTriggered,
+  }) async {
+    final res = await sendTelemetryWithResponse(
+      pga: pga,
+      staLtaRatio: staLtaRatio,
+      isTriggered: isTriggered,
+    );
+    return res != null;
   }
 
   void stop() {
