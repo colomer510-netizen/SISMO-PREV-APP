@@ -2,7 +2,7 @@
 
 > **Desafío 02:** "Sensores al servicio de la comunidad"  
 > **Evento:** Rally Latinoamericano de Innovación 2026  
-> **Equipo:** FENIX CODE (Nicaragua 🇳🇮) & EVOLVING MINDS (El Salvador 🇸🇻)
+> **Equipo:** FENIX CODE (Nicaragua 🇳🇮)
 
 ![SISMO-PREV Logo](servidor_monitoreo/logo_sismoprev.png)
 
