@@ -4,7 +4,7 @@ import time
 import asyncio
 import io
 import csv
-from datetime import datetime
+from typing import Dict, List, Any, Optional
 import requests
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, Response
 from fastapi.responses import HTMLResponse, JSONResponse
@@ -93,6 +93,10 @@ class DrillControlPayload(BaseModel):
 
 class TelegramAlertPayload(BaseModel):
     message: str = "🚨 Prueba de alerta SISMO-PREV."
+
+TelemetryPayload.model_rebuild()
+DrillControlPayload.model_rebuild()
+TelegramAlertPayload.model_rebuild()
 
 def send_telegram_alert(message_text: str):
     token = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
