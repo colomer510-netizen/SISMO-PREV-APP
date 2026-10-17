@@ -167,6 +167,12 @@ async def receive_telemetry(data: TelemetryPayload):
     node_data["last_seen"] = now
     system_state["nodes"][data.node_id] = node_data
 
+    # Limpiar nodos inactivos que no hayan enviado latido en los últimos 15 segundos
+    stale_cutoff = now - 15.0
+    stale_ids = [nid for nid, n in system_state["nodes"].items() if n.get("last_seen", 0) < stale_cutoff]
+    for sid in stale_ids:
+        del system_state["nodes"][sid]
+
     if data.is_triggered and not system_state["active_drill"]:
         system_state["status"] = "warning"
         system_state["threat_level"] = "AMARILLO"

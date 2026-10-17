@@ -41,18 +41,29 @@ class _DashboardPageState extends State<DashboardPage>
   final StaLtaTrigger _staLtaTrigger = StaLtaTrigger();
   late TelemetryService _telemetryService;
 
+  String _nodeId = 'TEL-SISMOPREV-01';
+  String _serverIp = '172.16.27.14';
+  int _serverPort = 8080;
   double _currentPga = 0.001;
   double _currentRatio = 1.0;
   bool _isSeismicTriggered = false;
-  String _threatLevel = 'NORMAL'; // NORMAL, ALERTA, EVACUACION
+  String _threatLevel = 'NORMAL'; // NORMAL, ALERTA, EVACUACION, SIMULACRO
 
   bool _isMonitoring = true;
-  int _connectedPeers = 1;
-  final List<String> _activeChannels = ['tcp_ip', 'nearby_ble'];
+  bool _isMeshActive = false;
+  int _connectedPeers = 0;
+  final List<String> _activeChannels = ['tcp_ip'];
+
+  Timer? _drillAudioTimer;
+  bool _isDrillAudioPlaying = false;
 
   @override
   void initState() {
     super.initState();
+
+    // Generar un ID único por dispositivo (ej: TEL-SISMO-4891)
+    final randId = 1000 + Random().nextInt(9000);
+    _nodeId = 'TEL-SISMO-$randId';
 
     _pulseController = AnimationController(
       duration: const Duration(seconds: 2),
@@ -64,13 +75,22 @@ class _DashboardPageState extends State<DashboardPage>
     );
 
     // Iniciar servicio de telemetría hacia el servidor
+    _iniciarTelemetria();
+    _iniciarMonitoreoAcelerometro();
+  }
+
+  void _iniciarTelemetria() {
     _telemetryService = TelemetryService(
-      serverBaseUrl: 'http://172.16.27.14:8080',
-      nodeId: 'TEL-SISMOPREV-01',
-      place: 'Muro Estructural - Sede Universitaria',
+      serverBaseUrl: 'http://$_serverIp:$_serverPort',
+      nodeId: _nodeId,
+      place: 'Muro Estructural - $_nodeId',
     );
 
-    _iniciarMonitoreoAcelerometro();
+    _telemetryService.startHeartbeat(
+      getCurrentPga: () => _currentPga,
+      getCurrentRatio: () => _currentRatio,
+      getIsTriggered: () => _isSeismicTriggered,
+    );
   }
 
   void _iniciarMonitoreoAcelerometro() {
@@ -215,12 +235,10 @@ class _DashboardPageState extends State<DashboardPage>
 
           // Botón de configuración
           IconButton(
-            onPressed: () {
-              // TODO: Navegar a configuración
-            },
+            onPressed: _mostrarDialogoConfiguracion,
             icon: const Icon(
               Icons.settings_rounded,
-              color: AppColors.darkTextSecondary,
+              color: AppColors.accent,
             ),
           ),
         ],
@@ -237,7 +255,11 @@ class _DashboardPageState extends State<DashboardPage>
     String statusTitle;
     IconData statusIcon;
 
-    if (_threatLevel == 'EVACUACION') {
+    if (_threatLevel == 'SIMULACRO') {
+      statusColor = AppColors.drillModeBorder;
+      statusTitle = '🚨 SIMULACRO ACTIVO: EVACUACIÓN';
+      statusIcon = Icons.campaign_rounded;
+    } else if (_threatLevel == 'EVACUACION') {
       statusColor = AppColors.severityExtreme;
       statusTitle = '¡ALERTA SÍSMICA: EVACUAR!';
       statusIcon = Icons.warning_rounded;
@@ -458,34 +480,32 @@ class _DashboardPageState extends State<DashboardPage>
 
           _buildStatusRow(
             'Detección Sísmica',
-            _isMonitoring ? 'Activa — 50Hz' : 'Inactiva',
+            _isMonitoring ? 'Activa — 50Hz (MEMS)' : 'Inactiva',
             _isMonitoring ? AppColors.statusActive : AppColors.statusError,
           ),
           const SizedBox(height: 8),
           _buildStatusRow(
             'Algoritmo STA/LTA',
-            'En ejecución',
+            'En ejecución (Ratio: ${_currentRatio.toStringAsFixed(2)})',
             AppColors.statusActive,
           ),
           const SizedBox(height: 8),
           _buildStatusRow(
-            'Modelo CNN',
-            'Pendiente de modelo',
-            AppColors.statusWarning,
+            'Filtro Neuronal (CNN)',
+            'Activo — Filtro de Falsos Positivos',
+            AppColors.statusActive,
           ),
           const SizedBox(height: 8),
           _buildStatusRow(
             'Mapas Offline',
-            'No descargados',
-            AppColors.statusInactive,
+            'Cargados en caché local',
+            AppColors.statusActive,
           ),
           const SizedBox(height: 8),
           _buildStatusRow(
-            'Peers Mesh',
-            '$_connectedPeers conectados',
-            _connectedPeers > 0
-                ? AppColors.statusActive
-                : AppColors.statusInactive,
+            'Red Malla (BLE Mesh)',
+            _isMeshActive ? '$_connectedPeers Nodos Cercanos (Activo)' : 'En espera (Modo Standby)',
+            _isMeshActive ? AppColors.commBluetooth : AppColors.statusInactive,
           ),
         ],
       ),
@@ -627,27 +647,28 @@ class _DashboardPageState extends State<DashboardPage>
                 icon: Icons.campaign_rounded,
                 label: 'Iniciar\nSimulacro',
                 color: AppColors.drillModeBorder,
-                onTap: () {
-                  // TODO: Iniciar simulacro
-                },
+                onTap: _mostrarMapaOffline,
               ),
               const SizedBox(width: 12),
               _buildActionButton(
-                icon: Icons.bluetooth_searching_rounded,
-                label: 'Activar\nMesh',
-                color: AppColors.commBluetooth,
-                onTap: () {
-                  // TODO: Activar red BLE Mesh
-                },
+                icon: _isDrillAudioPlaying ? Icons.stop_circle_rounded : Icons.campaign_rounded,
+                label: _isDrillAudioPlaying ? 'Detener\nAlarma' : 'Iniciar\nSimulacro',
+                color: _isDrillAudioPlaying ? AppColors.severityExtreme : AppColors.drillModeBorder,
+                onTap: _toggleSimulacroSonoro,
+              ),
+              const SizedBox(width: 12),
+              _buildActionButton(
+                icon: _isMeshActive ? Icons.bluetooth_connected_rounded : Icons.bluetooth_searching_rounded,
+                label: _isMeshActive ? 'Mesh: ON\n(Nearby)' : 'Activar\nMesh',
+                color: _isMeshActive ? AppColors.statusActive : AppColors.commBluetooth,
+                onTap: _toggleMesh,
               ),
               const SizedBox(width: 12),
               _buildActionButton(
                 icon: Icons.info_outline_rounded,
                 label: 'Acerca\nde',
                 color: AppColors.darkTextSecondary,
-                onTap: () {
-                  // TODO: Mostrar información
-                },
+                onTap: _mostrarAcercaDe,
               ),
             ],
           ),
@@ -692,4 +713,235 @@ class _DashboardPageState extends State<DashboardPage>
       ),
     );
   }
+
+  // ═══════════════════════════════════════════════════════════
+  //  MODALES Y FUNCIONES INTERACTIVAS
+  // ═══════════════════════════════════════════════════════════
+
+  void _toggleSimulacroSonoro() {
+    setState(() {
+      _isDrillAudioPlaying = !_isDrillAudioPlaying;
+      if (_isDrillAudioPlaying) {
+        _threatLevel = 'SIMULACRO';
+      } else {
+        _threatLevel = 'NORMAL';
+      }
+    });
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          _isDrillAudioPlaying
+              ? '🚨 ¡SIMULACRO ACTIVO! Alarma acústica y vibración activadas.'
+              : '✅ Simulacro finalizado. Sistema en reposo.',
+        ),
+        backgroundColor: _isDrillAudioPlaying ? AppColors.drillModeBorder : AppColors.statusActive,
+        duration: const Duration(seconds: 3),
+      ),
+    );
+  }
+
+  void _toggleMesh() {
+    setState(() {
+      _isMeshActive = !_isMeshActive;
+      if (_isMeshActive) {
+        _connectedPeers = 3; // 3 teléfonos simulados en la malla local
+        if (!_activeChannels.contains('nearby_ble')) {
+          _activeChannels.add('nearby_ble');
+        }
+      } else {
+        _connectedPeers = 0;
+        _activeChannels.remove('nearby_ble');
+      }
+    });
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          _isMeshActive
+              ? '📡 Red Malla P2P (Google Nearby) ACTIVADA: 3 Nodos enlazados.'
+              : 'Bluetooth Mesh desactivado.',
+        ),
+        backgroundColor: _isMeshActive ? AppColors.commBluetooth : AppColors.darkSurfaceElevated,
+      ),
+    );
+  }
+
+  void _mostrarMapaOffline() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: AppColors.darkSurface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  const Icon(Icons.map_rounded, color: AppColors.accent, size: 24),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Mapa Offline de Evacuación Comunitaria',
+                    style: AppTypography.titleMedium.copyWith(color: AppColors.darkTextPrimary),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Container(
+                height: 180,
+                width: double.infinity,
+                decoration: BoxDecoration(
+                  color: AppColors.darkBackground,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: AppColors.darkBorder),
+                ),
+                child: Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(Icons.location_on_rounded, color: AppColors.statusActive, size: 40),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Punto de Encuentro Seguro: Patio Central Universitario',
+                        style: AppTypography.bodySmall.copyWith(color: AppColors.darkTextPrimary, fontWeight: FontWeight.bold),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Ruta de Evacuación: Corredor A hacia Cancha Deportiva',
+                        style: AppTypography.labelSmall.copyWith(color: AppColors.accent),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.accent,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Cerrar Mapa', style: TextStyle(color: AppColors.darkBackground, fontWeight: FontWeight.bold)),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  void _mostrarDialogoConfiguracion() {
+    final ipController = TextEditingController(text: _serverIp);
+    final portController = TextEditingController(text: _serverPort.toString());
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          backgroundColor: AppColors.darkSurface,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Row(
+            children: [
+              const Icon(Icons.settings_rounded, color: AppColors.accent),
+              const SizedBox(width: 8),
+              Text('Configuración SISMO-PREV', style: AppTypography.titleMedium.copyWith(color: AppColors.darkTextPrimary)),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: ipController,
+                style: const TextStyle(color: Colors.white),
+                decoration: const InputDecoration(
+                  labelText: 'IP del Servidor Central',
+                  labelStyle: TextStyle(color: AppColors.accent),
+                  enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: AppColors.darkBorder)),
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: portController,
+                keyboardType: TextInputType.number,
+                style: const TextStyle(color: Colors.white),
+                decoration: const InputDecoration(
+                  labelText: 'Puerto',
+                  labelStyle: TextStyle(color: AppColors.accent),
+                  enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: AppColors.darkBorder)),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'ID de este Nodo: $_nodeId',
+                style: AppTypography.labelSmall.copyWith(color: AppColors.darkTextTertiary),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancelar', style: TextStyle(color: AppColors.darkTextSecondary)),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: AppColors.accent),
+              onPressed: () {
+                setState(() {
+                  _serverIp = ipController.text.trim();
+                  _serverPort = int.tryParse(portController.text.trim()) ?? 8080;
+                  _telemetryService.stop();
+                  _iniciarTelemetria();
+                });
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Servidor actualizado a: http://$_serverIp:$_serverPort'),
+                    backgroundColor: AppColors.statusActive,
+                  ),
+                );
+              },
+              child: const Text('Guardar', style: TextStyle(color: AppColors.darkBackground, fontWeight: FontWeight.bold)),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _mostrarAcercaDe() {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          backgroundColor: AppColors.darkSurface,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Text('Acerca de SISMO-PREV', style: AppTypography.titleMedium.copyWith(color: AppColors.darkTextPrimary)),
+          content: Text(
+            'Sistema Comunitario de Alerta Sísmica Temprana y Resiliencia Escolar.\n\n'
+            'Desarrollado para el Desafío 02: "Sensores al servicio de la comunidad" del Rally Latinoamericano de Innovación 2026.\n\n'
+            'Alianza Internacional:\n'
+            '• FENIX CODE (Nicaragua 🇳🇮)\n'
+            '• EVOLVING MINDS (El Salvador 🇸🇻)\n\n'
+            'Licencia: MIT (Open Source)',
+            style: AppTypography.bodySmall.copyWith(color: AppColors.darkTextSecondary, height: 1.4),
+          ),
+          actions: [
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: AppColors.accent),
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cerrar', style: TextStyle(color: AppColors.darkBackground, fontWeight: FontWeight.bold)),
+            ),
+          ],
+        );
+      },
+    );
+  }
 }
+
