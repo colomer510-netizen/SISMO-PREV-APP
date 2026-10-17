@@ -59,6 +59,7 @@ class _DashboardPageState extends State<DashboardPage>
 
   bool _isDrillAudioPlaying = false;
   final AudioPlayer _audioPlayer = AudioPlayer();
+  String _selectedAlarmTone = 'alarma_sasmex_voz.wav'; // Por defecto: Sirena Oficial SASMEX + Voz Institucional
 
   Future<void> _activarAlarmaSonora() async {
     if (_isDrillAudioPlaying) return;
@@ -69,7 +70,7 @@ class _DashboardPageState extends State<DashboardPage>
 
     try {
       await _audioPlayer.setReleaseMode(ReleaseMode.loop);
-      await _audioPlayer.play(AssetSource('sounds/alarm_siren.wav'));
+      await _audioPlayer.play(AssetSource('sounds/$_selectedAlarmTone'));
     } catch (e) {
       debugPrint('Error reproduciendo sonido de alarma: $e');
     }
@@ -971,6 +972,38 @@ class _DashboardPageState extends State<DashboardPage>
                   labelStyle: TextStyle(color: AppColors.accent),
                   enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: AppColors.darkBorder)),
                 ),
+              ),
+              const SizedBox(height: 16),
+              DropdownButtonFormField<String>(
+                value: _selectedAlarmTone,
+                dropdownColor: AppColors.darkSurfaceElevated,
+                style: const TextStyle(color: Colors.white, fontSize: 13),
+                decoration: const InputDecoration(
+                  labelText: 'Sonido Oficial de Alarma',
+                  labelStyle: TextStyle(color: AppColors.accent),
+                  enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: AppColors.darkBorder)),
+                ),
+                items: const [
+                  DropdownMenuItem(
+                    value: 'alarma_sasmex_voz.wav',
+                    child: Text('📢 Oficial SASMEX + Voz Institucional'),
+                  ),
+                  DropdownMenuItem(
+                    value: 'alarma_eas_nacional.wav',
+                    child: Text('⚡ Tono EAS Nacional (853/960 Hz)'),
+                  ),
+                  DropdownMenuItem(
+                    value: 'alarma_escolar_campana.wav',
+                    child: Text('🏫 Alarma Escolar / Campana Rápida'),
+                  ),
+                ],
+                onChanged: (val) {
+                  if (val != null) {
+                    setState(() {
+                      _selectedAlarmTone = val;
+                    });
+                  }
+                },
               ),
               const SizedBox(height: 16),
               Text(
