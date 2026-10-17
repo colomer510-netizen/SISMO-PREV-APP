@@ -2,8 +2,19 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>SISMO-PREV — Centro de Monitoreo Sísmico & Resiliencia</title>
+  
+  <!-- PWA & Mobile Web App Meta Tags -->
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#0284c7">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="SISMO-PREV">
+  <link rel="apple-touch-icon" href="/logo.png">
+  <link rel="icon" type="image/png" href="/logo.png">
+
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
     :root {
@@ -23,38 +34,126 @@
       background: var(--bg);
       color: var(--text);
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      padding: 16px;
+      padding: clamp(10px, 2vw, 20px);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
     }
     header {
       display: flex;
+      flex-wrap: wrap;
       justify-content: space-between;
       align-items: center;
-      padding-bottom: 16px;
+      gap: 12px;
+      padding-bottom: 14px;
       border-bottom: 1px solid var(--border);
-      margin-bottom: 20px;
+      margin-bottom: 16px;
     }
     .brand {
       display: flex;
       align-items: center;
       gap: 12px;
     }
-    .brand h1 { font-size: 20px; font-weight: 800; letter-spacing: -0.5px; }
-    .brand span { font-size: 12px; color: var(--blue); background: rgba(59,130,246,0.15); padding: 3px 8px; border-radius: 99px; }
+    .brand img {
+      height: 48px;
+      width: auto;
+      object-fit: contain;
+      border-radius: 8px;
+    }
+    .brand h1 { 
+      font-size: clamp(16px, 4vw, 20px); 
+      font-weight: 800; 
+      letter-spacing: -0.5px; 
+      line-height: 1.2;
+    }
+    .brand p {
+      font-size: clamp(11px, 2.5vw, 12px);
+      color: var(--text-muted);
+    }
     
+    .header-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .btn-download-apk {
+      text-decoration: none;
+      background: #0284c7;
+      color: white;
+      padding: 8px 14px;
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 700;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: background 0.2s;
+    }
+    .btn-download-apk:hover {
+      background: #0369a1;
+    }
+
+    /* GRID ADAPTABLE / RESPONSIVE */
     .grid {
       display: grid;
-      grid-template-columns: 320px 1fr 340px;
+      grid-template-columns: minmax(280px, 340px) 1fr minmax(280px, 340px);
       gap: 16px;
+      flex: 1;
     }
-    @media (max-width: 1024px) {
-      .grid { grid-template-columns: 1fr; }
+
+    /* En Tablets y Laptops pequeñas */
+    @media (max-width: 1100px) {
+      .grid {
+        grid-template-columns: 1fr 1fr;
+      }
+      .col-chart {
+        grid-column: span 2;
+        order: -1;
+      }
     }
+
+    /* En Celulares y Pantallas Estrechas */
+    @media (max-width: 768px) {
+      body {
+        padding: 10px;
+      }
+      header {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+      .header-actions {
+        width: 100%;
+        justify-content: space-between;
+      }
+      .grid {
+        grid-template-columns: 1fr;
+        gap: 12px;
+      }
+      .col-chart {
+        grid-column: span 1;
+        order: 0;
+      }
+      .chart-container {
+        height: 220px !important;
+      }
+      .btn-group {
+        flex-direction: column;
+      }
+      button {
+        width: 100%;
+        padding: 12px 14px;
+      }
+    }
+
     .card {
       background: var(--card-bg);
       border: 1px solid var(--border);
-      border-radius: 12px;
+      border-radius: 14px;
       padding: 16px;
       position: relative;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.25);
     }
     .card-title {
       font-size: 13px;
@@ -71,17 +170,17 @@
     /* SEMÁFORO GIGANTE */
     .traffic-light-card {
       text-align: center;
-      padding: 24px 16px;
+      padding: 20px 16px;
     }
     .light-badge {
-      width: 110px;
-      height: 110px;
+      width: clamp(90px, 20vw, 110px);
+      height: clamp(90px, 20vw, 110px);
       border-radius: 50%;
       margin: 0 auto 16px auto;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 38px;
+      font-size: clamp(32px, 8vw, 42px);
       transition: all 0.4s ease;
       box-shadow: 0 0 25px rgba(16, 185, 129, 0.2);
     }
@@ -95,13 +194,13 @@
       to { transform: scale(1.06); }
     }
     
-    .status-text { font-size: 20px; font-weight: 800; margin-bottom: 4px; }
-    .status-sub { font-size: 12px; color: var(--text-muted); }
+    .status-text { font-size: clamp(17px, 4vw, 20px); font-weight: 800; margin-bottom: 4px; }
+    .status-sub { font-size: 12px; color: var(--text-muted); line-height: 1.4; }
 
     /* CONTROLES Y SIMULACRO */
     .btn-group { display: flex; flex-direction: column; gap: 8px; margin-top: 16px; }
     button {
-      padding: 10px 14px;
+      padding: 12px 14px;
       border-radius: 8px;
       border: none;
       font-weight: 700;
@@ -111,22 +210,24 @@
       align-items: center;
       justify-content: center;
       gap: 8px;
-      transition: opacity 0.2s;
+      transition: opacity 0.2s, transform 0.1s;
+      touch-action: manipulation;
     }
-    button:hover { opacity: 0.85; }
+    button:active { transform: scale(0.98); }
+    button:hover { opacity: 0.9; }
     .btn-drill { background: var(--orange); color: white; }
     .btn-reset { background: var(--border); color: var(--text); }
     .btn-ai { background: linear-gradient(135deg, #6366f1 0%, #a855f7 100%); color: white; }
 
     /* SISMÓGRAFO */
-    .chart-container { height: 260px; position: relative; margin-top: 10px; }
+    .chart-container { height: 260px; position: relative; margin-top: 10px; width: 100%; }
 
     /* NODOS */
     .node-item {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      padding: 10px;
+      padding: 10px 12px;
       background: #182234;
       border-radius: 8px;
       margin-bottom: 8px;
@@ -152,15 +253,15 @@
 
   <header>
     <div class="brand">
-      <img src="/logo.png" alt="SismoPrev Logo" style="height: 52px; width: auto; object-fit: contain; border-radius: 8px;">
+      <img src="/logo.png" alt="SismoPrev Logo">
       <div>
-        <h1>SISMO-PREV — Centro Comunitario de Monitoreo</h1>
-        <p style="font-size: 12px; color: var(--text-muted);">Red Sísmica Distribuida con Teléfonos Reutilizados • Rally 2026</p>
+        <h1>SISMO-PREV — Monitoreo Sísmico</h1>
+        <p>Red Distribuida de Sensores Móviles • Rally 2026</p>
       </div>
     </div>
-    <div style="display: flex; gap: 12px; align-items: center;">
-      <a href="/descargar-apk" style="text-decoration: none; background: #0284c7; color: white; padding: 6px 14px; border-radius: 6px; font-size: 12px; font-weight: 600; display: flex; align-items: center; gap: 6px;">📥 Descargar APK Móvil</a>
-      <span id="connStatus" style="font-size: 12px; color: var(--green); font-weight: 600;">● Conectado en Vivo</span>
+    <div class="header-actions">
+      <a href="/descargar-apk" class="btn-download-apk">📥 Descargar APK</a>
+      <span id="connStatus" style="font-size: 12px; color: var(--green); font-weight: 600;">● En Vivo</span>
       <span style="font-size: 12px; color: var(--text-muted);" id="clock">00:00:00</span>
     </div>
   </header>
@@ -201,7 +302,7 @@
     </div>
 
     <!-- COLUMNA 2: SISMÓGRAFO EN VIVO -->
-    <div class="card" style="display: flex; flex-direction: column;">
+    <div class="card col-chart" style="display: flex; flex-direction: column;">
       <div class="card-title">
         <span>Sismógrafo en Vivo (Aceleración Pico del Suelo - PGA)</span>
         <span id="currentPgaBadge" style="color: var(--blue); font-weight: 700;">0.002 g</span>
@@ -498,6 +599,15 @@
       } catch (e) {
         box.innerText = 'Error al consultar el servicio de IA.';
       }
+    }
+
+    // REGISTRO DE SERVICE WORKER (PWA)
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js')
+          .then(reg => console.log('PWA Service Worker registrado con éxito:', reg.scope))
+          .catch(err => console.warn('Fallo registro Service Worker:', err));
+      });
     }
   </script>
 </body>

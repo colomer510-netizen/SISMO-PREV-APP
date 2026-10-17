@@ -265,6 +265,16 @@ def get_logo():
     logo_path = os.path.join(os.path.dirname(__file__), "logo_sismoprev.png")
     return FileResponse(path=logo_path, media_type="image/png")
 
+@app.get("/manifest.json")
+def get_manifest():
+    manifest_path = os.path.join(os.path.dirname(__file__), "manifest.json")
+    return FileResponse(path=manifest_path, media_type="application/manifest+json")
+
+@app.get("/sw.js")
+def get_sw():
+    sw_path = os.path.join(os.path.dirname(__file__), "sw.js")
+    return FileResponse(path=sw_path, media_type="application/javascript")
+
 from fastapi.responses import FileResponse
 @app.get("/descargar-apk")
 def download_apk():
