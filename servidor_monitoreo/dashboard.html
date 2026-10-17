@@ -614,16 +614,16 @@
           const isNic = (q.source && q.source.includes('Nicaragua')) || (q.place && q.place.toLowerCase().includes('nicaragua'));
           if (isNic) nicQuakesCount++;
 
-          const radius = isNic ? Math.max(10, Math.min(24, (mag - 3.5) * 8 + 10)) : Math.max(7, Math.min(18, (mag - 3.5) * 7 + 7));
+          // Marcadores discretos y elegantes (micro-pines no invasivos)
+          const radius = isNic ? 6 : 4.5;
           const dateStr = q.time ? new Date(q.time).toLocaleTimeString() : 'Reciente';
 
-          // Diferenciar sismos directos en Nicaragua de los del resto de Centroamérica
           const marker = L.circleMarker([q.lat, q.lng], {
             radius: radius,
-            color: isNic ? '#b91c1c' : '#c2410c',
+            color: isNic ? '#ef4444' : '#f97316',
             fillColor: isNic ? '#ef4444' : '#f97316',
-            fillOpacity: isNic ? 0.95 : 0.75,
-            weight: isNic ? 3 : 2
+            fillOpacity: 0.65,
+            weight: 1.5
           }).addTo(map);
 
           marker.bindPopup(`
