@@ -94,9 +94,8 @@ flutter run -d chrome
 
 ---
 
-## 🏆 5. Equipo de Desarrollo & Colaboración Internacional
+## 🏆 5. Equipo de Desarrollo
 - **FENIX CODE** (Nicaragua 🇳🇮)
-- **EVOLVING MINDS** (El Salvador 🇸🇻)
 - **Evento:** Rally Latinoamericano de Innovación 2026.
 
 ---

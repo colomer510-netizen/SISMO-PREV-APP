@@ -13,7 +13,7 @@
 
 import 'dart:typed_data';
 
-import '../../core/constants/app_constants.dart';
+import '../../../../core/constants/app_constants.dart';
 
 /// Resultado de la clasificación CNN.
 class CnnClassificationResult {

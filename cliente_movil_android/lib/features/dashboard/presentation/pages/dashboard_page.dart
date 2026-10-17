@@ -1020,9 +1020,8 @@ class _DashboardPageState extends State<DashboardPage>
           content: Text(
             'Sistema Comunitario de Alerta Sísmica Temprana y Resiliencia Escolar.\n\n'
             'Desarrollado para el Desafío 02: "Sensores al servicio de la comunidad" del Rally Latinoamericano de Innovación 2026.\n\n'
-            'Alianza Internacional:\n'
-            '• FENIX CODE (Nicaragua 🇳🇮)\n'
-            '• EVOLVING MINDS (El Salvador 🇸🇻)\n\n'
+            'Equipo Desarrollador:\n'
+            '• FENIX CODE (Nicaragua 🇳🇮)\n\n'
             'Licencia: MIT (Open Source)',
             style: AppTypography.bodySmall.copyWith(color: AppColors.darkTextSecondary, height: 1.4),
           ),
