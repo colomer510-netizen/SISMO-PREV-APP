@@ -98,3 +98,18 @@ flutter run -d chrome
 - **FENIX CODE** (Nicaragua 🇳🇮)
 - **EVOLVING MINDS** (El Salvador 🇸🇻)
 - **Evento:** Rally Latinoamericano de Innovación 2026.
+
+---
+
+## 🚧 6. Estado del Proyecto & Próximas Funciones (Roadmap)
+
+> [!NOTE]
+> **Proyecto en Desarrollo Activo:** Esta versión constituye el prototipo funcional presentado para el **Rally Latinoamericano de Innovación 2026**. El sistema continuará su ciclo de evolución con el fin de robustecer la resiliencia comunitaria y la interoperabilidad con centros sismológicos nacionales (INETER en Nicaragua / MARN en El Salvador).
+
+### 🔮 Funciones Planificadas para Futuras Versiones:
+- [ ] **Malla Descentralizada P2P Autónoma:** Enrutamiento multipunto dinámico (*Multi-hop BLE Mesh*) para propagación de alertas en zonas rurales sin cobertura móvil.
+- [ ] **Inferencia Neuronal Edge (CNN v2):** Despliegue de modelo TensorFlow Lite ultraligero cuantizado a 8 bits directamente en el procesador del teléfono para filtrado extremo de falsos positivos mecánicos.
+- [ ] **Pasarela de Alertas Masivas por SMS y Cell Broadcast:** Integración con protocolos de emergencia CAP 1.2 (*Common Alerting Protocol*) para radiodifusión celular de defensa civil.
+- [ ] **Mapas Vectoriales Topográficos Offline:** Integración de teselas MBTiles de zonas de seguridad escolar y albergues sin requerir descarga de datos en línea.
+- [ ] **Sincronización Cloud con Firebase Cloud Messaging (FCM):** Canal de empuje en milisegundos con soporte para despertar teléfonos en reposo (*Doze Mode*).
+
