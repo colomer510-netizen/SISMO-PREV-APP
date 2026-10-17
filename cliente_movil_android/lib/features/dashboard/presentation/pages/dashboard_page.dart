@@ -195,29 +195,83 @@ class _DashboardPageState extends State<DashboardPage>
     return Scaffold(
       backgroundColor: AppColors.darkBackground,
       body: SafeArea(
-        child: CustomScrollView(
-          slivers: [
-            // ── Header con logo y estado ──
-            SliverToBoxAdapter(child: _buildHeader()),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final isWideScreen = constraints.maxWidth >= 768;
 
-            // ── Indicador de nivel de amenaza ──
-            SliverToBoxAdapter(child: _buildThreatLevelGauge()),
+            if (isWideScreen) {
+              // ── Diseño para Tablet y PC (2 Columnas centradas) ──
+              return Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 1100),
+                  child: CustomScrollView(
+                    slivers: [
+                      SliverToBoxAdapter(child: _buildHeader()),
+                      SliverPadding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        sliver: SliverToBoxAdapter(
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              // Columna Izquierda: Nivel de amenaza y comunicaciones
+                              Expanded(
+                                flex: 5,
+                                child: Column(
+                                  children: [
+                                    _buildThreatLevelGauge(),
+                                    _buildCommunicationsStatus(),
+                                    _buildQuickActions(),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(width: 16),
+                              // Columna Derecha: Estado de sensores y eventos
+                              Expanded(
+                                flex: 6,
+                                child: Column(
+                                  children: [
+                                    _buildSystemStatusCard(),
+                                    _buildRecentEventsSection(),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SliverToBoxAdapter(child: SizedBox(height: 32)),
+                    ],
+                  ),
+                ),
+              );
+            }
 
-            // ── Estado de comunicaciones ──
-            SliverToBoxAdapter(child: _buildCommunicationsStatus()),
+            // ── Diseño para Teléfonos Móviles (1 Columna fluida) ──
+            return CustomScrollView(
+              slivers: [
+                // ── Header con logo y estado ──
+                SliverToBoxAdapter(child: _buildHeader()),
 
-            // ── Estado del sistema ──
-            SliverToBoxAdapter(child: _buildSystemStatusCard()),
+                // ── Indicador de nivel de amenaza ──
+                SliverToBoxAdapter(child: _buildThreatLevelGauge()),
 
-            // ── Últimos eventos ──
-            SliverToBoxAdapter(child: _buildRecentEventsSection()),
+                // ── Estado de comunicaciones ──
+                SliverToBoxAdapter(child: _buildCommunicationsStatus()),
 
-            // ── Panel de acciones rápidas ──
-            SliverToBoxAdapter(child: _buildQuickActions()),
+                // ── Estado del sistema ──
+                SliverToBoxAdapter(child: _buildSystemStatusCard()),
 
-            // Espaciado inferior
-            const SliverToBoxAdapter(child: SizedBox(height: 32)),
-          ],
+                // ── Últimos eventos ──
+                SliverToBoxAdapter(child: _buildRecentEventsSection()),
+
+                // ── Panel de acciones rápidas ──
+                SliverToBoxAdapter(child: _buildQuickActions()),
+
+                // Espaciado inferior
+                const SliverToBoxAdapter(child: SizedBox(height: 32)),
+              ],
+            );
+          },
         ),
       ),
     );
