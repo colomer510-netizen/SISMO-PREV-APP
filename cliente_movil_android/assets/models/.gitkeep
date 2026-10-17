@@ -1,0 +1,4 @@
+Colocar aquí el modelo TFLite para clasificación sísmica.
+Nombre esperado: seismic_classifier.tflite
+Input: [1, 100, 3] — 2 segundos × 50Hz × 3 ejes
+Output: [1, 2] — [prob_earthquake, prob_human_activity]

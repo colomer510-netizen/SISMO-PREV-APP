@@ -1,0 +1,31 @@
+# Python virtual environments
+venv_sismoprev/
+__pycache__/
+*.pyc
+
+# Flutter & Dart build artifacts
+cliente_movil_android/.dart_tool/
+cliente_movil_android/build/
+cliente_movil_android/.flutter-plugins
+cliente_movil_android/.flutter-plugins-dependencies
+cliente_movil_android/.packages
+cliente_movil_android/.pub-cache/
+cliente_movil_android/.pub/
+
+# Android generated
+cliente_movil_android/android/.gradle/
+cliente_movil_android/android/local.properties
+cliente_movil_android/android/app/build/
+
+# Binary APKs (exclude from git to prevent repo bloating)
+*.apk
+*.aab
+*.tar.gz
+*.zip
+
+# System & IDE
+.DS_Store
+.idea/
+.vscode/
+*.swp
+*.log

@@ -1,0 +1,8 @@
+Colocar aquí archivos de audio para alarmas por severidad.
+
+Archivos esperados:
+- siren_extreme.mp3    — Sirena de emergencia máxima (Extreme)
+- alarm_severe.mp3     — Alarma intensa (Severe)
+- alert_moderate.mp3   — Alerta moderada (Moderate)
+- notification_info.mp3 — Notificación informativa (Minor)
+- drill_notification.mp3 — Sonido de simulacro

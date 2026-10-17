@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SISMO-PREV — Centro de Monitoreo Sísmico & Resiliencia</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    :root {
+      --bg: #090d16;
+      --card-bg: #121826;
+      --border: #232d42;
+      --text: #f1f5f9;
+      --text-muted: #94a3b8;
+      --green: #10b981;
+      --yellow: #f59e0b;
+      --red: #ef4444;
+      --orange: #f97316;
+      --blue: #3b82f6;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      padding: 16px;
+    }
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-bottom: 16px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 20px;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .brand h1 { font-size: 20px; font-weight: 800; letter-spacing: -0.5px; }
+    .brand span { font-size: 12px; color: var(--blue); background: rgba(59,130,246,0.15); padding: 3px 8px; border-radius: 99px; }
+    
+    .grid {
+      display: grid;
+      grid-template-columns: 320px 1fr 340px;
+      gap: 16px;
+    }
+    @media (max-width: 1024px) {
+      .grid { grid-template-columns: 1fr; }
+    }
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px;
+      position: relative;
+    }
+    .card-title {
+      font-size: 13px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-muted);
+      margin-bottom: 12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    
+    /* SEMÁFORO GIGANTE */
+    .traffic-light-card {
+      text-align: center;
+      padding: 24px 16px;
+    }
+    .light-badge {
+      width: 110px;
+      height: 110px;
+      border-radius: 50%;
+      margin: 0 auto 16px auto;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 38px;
+      transition: all 0.4s ease;
+      box-shadow: 0 0 25px rgba(16, 185, 129, 0.2);
+    }
+    .state-green { background: rgba(16,185,129,0.2); border: 3px solid var(--green); color: var(--green); }
+    .state-yellow { background: rgba(245,158,11,0.2); border: 3px solid var(--yellow); color: var(--yellow); box-shadow: 0 0 35px rgba(245, 158, 11, 0.4); }
+    .state-red { background: rgba(239,68,68,0.25); border: 3px solid var(--red); color: var(--red); box-shadow: 0 0 45px rgba(239, 68, 68, 0.6); animation: pulseRed 1s infinite alternate; }
+    .state-orange { background: rgba(249,115,22,0.25); border: 3px solid var(--orange); color: var(--orange); }
+
+    @keyframes pulseRed {
+      from { transform: scale(1); }
+      to { transform: scale(1.06); }
+    }
+    
+    .status-text { font-size: 20px; font-weight: 800; margin-bottom: 4px; }
+    .status-sub { font-size: 12px; color: var(--text-muted); }
+
+    /* CONTROLES Y SIMULACRO */
+    .btn-group { display: flex; flex-direction: column; gap: 8px; margin-top: 16px; }
+    button {
+      padding: 10px 14px;
+      border-radius: 8px;
+      border: none;
+      font-weight: 700;
+      font-size: 13px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: opacity 0.2s;
+    }
+    button:hover { opacity: 0.85; }
+    .btn-drill { background: var(--orange); color: white; }
+    .btn-reset { background: var(--border); color: var(--text); }
+    .btn-ai { background: linear-gradient(135deg, #6366f1 0%, #a855f7 100%); color: white; }
+
+    /* SISMÓGRAFO */
+    .chart-container { height: 260px; position: relative; margin-top: 10px; }
+
+    /* NODOS */
+    .node-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px;
+      background: #182234;
+      border-radius: 8px;
+      margin-bottom: 8px;
+      font-size: 13px;
+    }
+    .node-status { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+
+    /* AI RESPONSE */
+    .ai-box {
+      background: #181d2f;
+      border-left: 3px solid #818cf8;
+      border-radius: 6px;
+      padding: 12px;
+      font-size: 12.5px;
+      line-height: 1.5;
+      color: #e2e8f0;
+      max-height: 220px;
+      overflow-y: auto;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="brand">
+      <img src="/logo.png" alt="SismoPrev Logo" style="height: 52px; width: auto; object-fit: contain; border-radius: 8px;">
+      <div>
+        <h1>SISMO-PREV — Centro Comunitario de Monitoreo</h1>
+        <p style="font-size: 12px; color: var(--text-muted);">Red Sísmica Distribuida con Teléfonos Reutilizados • Rally 2026</p>
+      </div>
+    </div>
+    <div style="display: flex; gap: 12px; align-items: center;">
+      <a href="/descargar-apk" style="text-decoration: none; background: #0284c7; color: white; padding: 6px 14px; border-radius: 6px; font-size: 12px; font-weight: 600; display: flex; align-items: center; gap: 6px;">📥 Descargar APK Móvil</a>
+      <span id="connStatus" style="font-size: 12px; color: var(--green); font-weight: 600;">● Conectado en Vivo</span>
+      <span style="font-size: 12px; color: var(--text-muted);" id="clock">00:00:00</span>
+    </div>
+  </header>
+
+  <div class="grid">
+    
+    <!-- COLUMNA 1: SEMÁFORO Y SIMULACRO -->
+    <div style="display: flex; flex-direction: column; gap: 16px;">
+      <div class="card traffic-light-card">
+        <div class="card-title">Nivel de Amenaza Sísmica</div>
+        <div id="lightCircle" class="light-badge state-green">🟢</div>
+        <div id="statusTitle" class="status-text" style="color: var(--green);">CONDICIÓN NORMAL</div>
+        <div id="statusDesc" class="status-sub">Microvibraciones de fondo estables. Sin eventos detectados.</div>
+
+        <div class="btn-group">
+          <button class="btn-drill" id="btnDrill" onclick="toggleDrill()">
+            📢 Activar Modo Simulacro Escolar
+          </button>
+          <button class="btn-reset" onclick="resetStatus()">
+            🔄 Restablecer a Normal
+          </button>
+        </div>
+      </div>
+
+      <!-- MÓDULO IA ASISTENTE -->
+      <div class="card">
+        <div class="card-title">
+          <span>Copiloto de IA (Protección Civil)</span>
+          <span style="font-size: 10px; color: #818cf8;">API Ollama</span>
+        </div>
+        <button class="btn-ai" style="width: 100%; margin-bottom: 10px;" onclick="requestAiAnalysis()">
+          ✨ Generar Evaluación Sísmica con IA
+        </button>
+        <div class="ai-box" id="aiOutput">
+          Presiona el botón para que el asistente de IA analice la telemetría actual y genere el protocolo recomendado para escuelas y bomberos.
+        </div>
+      </div>
+    </div>
+
+    <!-- COLUMNA 2: SISMÓGRAFO EN VIVO -->
+    <div class="card" style="display: flex; flex-direction: column;">
+      <div class="card-title">
+        <span>Sismógrafo en Vivo (Aceleración Pico del Suelo - PGA)</span>
+        <span id="currentPgaBadge" style="color: var(--blue); font-weight: 700;">0.002 g</span>
+      </div>
+      <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 6px;">
+        Flujo de aceleración transmitido por los acelerómetros MEMS a 50Hz. Las sacudidas superando 0.05g disparan pre-alerta.
+      </p>
+      <div class="chart-container" style="flex: 1;">
+        <canvas id="seismograph"></canvas>
+      </div>
+      <div style="margin-top: 12px; display: flex; justify-content: space-between; font-size: 11.5px; color: var(--text-muted); border-top: 1px solid var(--border); padding-top: 8px;">
+        <span>Filtro Pasa-bandas: 1 - 20 Hz</span>
+        <span>Algoritmo: STA/LTA (Ventana: 1s / 10s)</span>
+        <span id="triggerCount">Triggers: 0</span>
+      </div>
+    </div>
+
+    <!-- COLUMNA 3: TELÉFONOS EN LA RED Y EVENTOS -->
+    <div style="display: flex; flex-direction: column; gap: 16px;">
+      <div class="card" style="flex: 1;">
+        <div class="card-title">
+          <span>Nodos Conectados (Smartphones)</span>
+          <span id="nodeCount" style="color: var(--blue);">0 Activos</span>
+        </div>
+        <div id="nodesList" style="max-height: 220px; overflow-y: auto;">
+          <div style="font-size: 12px; color: var(--text-muted); text-align: center; padding: 20px;">
+            Esperando conexión de teléfonos móviles...
+          </div>
+        </div>
+      </div>
+
+      <div class="card" style="flex: 1;">
+        <div class="card-title">Historial de Eventos Confirmados</div>
+        <div id="eventsList" style="max-height: 200px; overflow-y: auto; font-size: 12px;">
+          <div style="color: var(--text-muted); text-align: center; padding: 10px;">
+            Sin eventos sísmicos registrados hoy.
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    // RELOJ
+    setInterval(() => {
+      document.getElementById('clock').innerText = new Date().toLocaleTimeString();
+    }, 1000);
+
+    // CONFIGURACIÓN DEL SISMÓGRAFO
+    const ctx = document.getElementById('seismograph').getContext('2d');
+    const maxPoints = 50;
+    const initialData = Array(maxPoints).fill(0.002);
+    const labels = Array(maxPoints).fill('');
+
+    const chart = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: labels,
+        datasets: [{
+          label: 'Aceleración (g)',
+          data: initialData,
+          borderColor: '#3b82f6',
+          borderWidth: 2,
+          backgroundColor: 'rgba(59, 130, 246, 0.05)',
+          fill: true,
+          tension: 0.35,
+          pointRadius: 0
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: false,
+        scales: {
+          y: {
+            min: 0,
+            max: 0.35,
+            grid: { color: '#1e293b' },
+            ticks: { color: '#94a3b8', font: { size: 10 } }
+          },
+          x: { display: false }
+        },
+        plugins: { legend: { display: false } }
+      }
+    });
+
+    let isDrillActive = false;
+
+    // CONEXIÓN WEBSOCKET AL SERVIDOR
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const wsUrl = `${protocol}//${window.location.host}/ws/dashboard`;
+    let socket;
+
+    function connectWs() {
+      socket = new WebSocket(wsUrl);
+      socket.onopen = () => {
+        document.getElementById('connStatus').innerText = '● Conectado en Vivo';
+        document.getElementById('connStatus').style.color = '#10b981';
+      };
+      socket.onmessage = (event) => {
+        const msg = JSON.parse(event.data);
+        handleServerMessage(msg);
+      };
+      socket.onclose = () => {
+        document.getElementById('connStatus').innerText = '○ Desconectado (Reintentando...)';
+        document.getElementById('connStatus').style.color = '#ef4444';
+        setTimeout(connectWs, 2000);
+      };
+    }
+    connectWs();
+
+    function handleServerMessage(msg) {
+      if (msg.type === 'telemetry_update') {
+        const pga = msg.node.pga;
+        document.getElementById('currentPgaBadge').innerText = `${pga.toFixed(4)} g`;
+
+        // Actualizar gráfica
+        chart.data.datasets[0].data.shift();
+        chart.data.datasets[0].data.push(pga);
+        if (pga > 0.08) {
+          chart.data.datasets[0].borderColor = '#ef4444';
+        } else if (pga > 0.03) {
+          chart.data.datasets[0].borderColor = '#f59e0b';
+        } else {
+          chart.data.datasets[0].borderColor = '#3b82f6';
+        }
+        chart.update();
+
+        // Actualizar lista de nodos
+        renderNodes(msg.system_state.nodes);
+
+        // Si hay consenso sísmico
+        if (msg.consensus_event) {
+          triggerAlarmUI(msg.consensus_event.estimated_magnitude);
+        }
+      } else if (msg.type === 'drill_alert') {
+        if (msg.action === 'start') {
+          setDrillUI(msg.simulated_magnitude);
+        } else {
+          setNormalUI();
+        }
+      } else if (msg.type === 'init_state') {
+        renderNodes(msg.system_state.nodes);
+        if (msg.system_state.active_drill) {
+          setDrillUI(6.8);
+        }
+      }
+    }
+
+    function renderNodes(nodes) {
+      const container = document.getElementById('nodesList');
+      const keys = Object.keys(nodes);
+      document.getElementById('nodeCount').innerText = `${keys.length} Activos`;
+      if (keys.length === 0) {
+        container.innerHTML = '<div style="font-size: 12px; color: #94a3b8; text-align: center; padding: 20px;">Esperando teléfonos móviles...</div>';
+        return;
+      }
+      container.innerHTML = keys.map(id => {
+        const n = nodes[id];
+        const color = n.is_triggered ? '#ef4444' : '#10b981';
+        return `
+          <div class="node-item">
+            <div>
+              <strong>${n.node_id}</strong>
+              <div style="font-size: 11px; color: #94a3b8;">${n.place || 'Lado norte'} • Bat: ${n.battery || 100}%</div>
+            </div>
+            <div style="text-align: right;">
+              <span class="node-status" style="background: ${color}"></span>
+              <div style="font-size: 11px; font-weight: 700; color: ${color};">${n.pga ? n.pga.toFixed(3) : '0.000'} g</div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function setDrillUI(mag) {
+      isDrillActive = true;
+      const circle = document.getElementById('lightCircle');
+      circle.className = 'light-badge state-orange';
+      circle.innerText = '🔶';
+      document.getElementById('statusTitle').innerText = 'SIMULACRO EN CURSO';
+      document.getElementById('statusTitle').style.color = 'var(--orange)';
+      document.getElementById('statusDesc').innerText = `Ejercicio preventivo activo (Simulación M${mag}). Mantenga la calma y proceda a zona segura.`;
+      document.getElementById('btnDrill').innerText = '🛑 Detener Simulacro';
+    }
+
+    function triggerAlarmUI(mag) {
+      const circle = document.getElementById('lightCircle');
+      circle.className = 'light-badge state-red';
+      circle.innerText = '🔴';
+      document.getElementById('statusTitle').innerText = `¡ALERTA SÍSMICA CONFIRMADA (M${mag})!`;
+      document.getElementById('statusTitle').style.color = 'var(--red)';
+      document.getElementById('statusDesc').innerText = 'Múltiples teléfonos detectaron aceleración sísmica sincronizada. ¡Evacuación inmediata!';
+    }
+
+    function setNormalUI() {
+      isDrillActive = false;
+      const circle = document.getElementById('lightCircle');
+      circle.className = 'light-badge state-green';
+      circle.innerText = '🟢';
+      document.getElementById('statusTitle').innerText = 'CONDICIÓN NORMAL';
+      document.getElementById('statusTitle').style.color = 'var(--green)';
+      document.getElementById('statusDesc').innerText = 'Microvibraciones de fondo estables. Sin eventos detectados.';
+      document.getElementById('btnDrill').innerText = '📢 Activar Modo Simulacro Escolar';
+    }
+
+    async function toggleDrill() {
+      const action = isDrillActive ? 'stop' : 'start';
+      await fetch('/api/drill', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: action, simulated_magnitude: 6.8 })
+      });
+    }
+
+    async function resetStatus() {
+      await fetch('/api/drill', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'stop' })
+      });
+      setNormalUI();
+    }
+
+    async function requestAiAnalysis() {
+      const box = document.getElementById('aiOutput');
+      box.innerText = '⏳ Consultando al Copiloto de IA local para evaluación técnica...';
+      try {
+        const resp = await fetch('/api/ai/analyze', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({})
+        });
+        const data = await resp.json();
+        box.innerText = data.analysis;
+      } catch (e) {
+        box.innerText = 'Error al consultar el servicio de IA.';
+      }
+    }
+  </script>
+</body>
+</html>

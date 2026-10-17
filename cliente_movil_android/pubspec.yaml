@@ -1,0 +1,91 @@
+name: sismoguard
+description: >
+  Aplicación de misión crítica para Alerta Temprana de Desastres Naturales.
+  Detección sísmica colectiva con paradigma Offline-First.
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.4.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+
+  # ─── Arquitectura & State Management ───
+  get_it: ^8.0.2                    # Inyección de dependencias
+  flutter_bloc: ^8.1.6              # BLoC pattern
+  equatable: ^2.0.7                 # Comparación de objetos por valor
+  dartz: ^0.10.1                    # Either/Option para manejo de errores funcional
+
+  # ─── Mapas Offline (MapLibre + MBTiles) ───
+  # maplibre_gl: ^0.20.0            # MapLibre GL Native (Android/iOS)
+  sqflite: ^2.4.1                   # SQLite para MBTiles
+  path_provider: ^2.1.5             # Acceso a directorios del dispositivo
+
+  # ─── Sensores & Edge Computing ───
+  sensors_plus: ^6.1.1              # Acelerómetro MEMS
+  # tflite_flutter: ^0.12.0         # CNN inferencia local (TensorFlow Lite)
+
+  # ─── Comunicaciones Hiper-Redundantes ───
+  # bridgefy: ^1.1.11               # BLE Mesh P2P (Bridgefy SDK)
+  # background_sms: ^0.0.4          # SMS silencioso sin interacción (obsoleto con Gradle moderno)
+  connectivity_plus: ^6.1.1         # Detección de conectividad
+
+  # ─── Parsing & Serialización ───
+  xml: ^6.5.0                       # Parser XML para CAP 1.2
+  intl: ^0.20.3                     # Internacionalización / formateo
+
+  # ─── Foreground Service & Background ───
+  flutter_foreground_task: ^8.12.0  # Servicio en primer plano persistente
+
+  # ─── Audio, Vibración & Notificaciones ───
+  audioplayers: ^6.1.0              # Reproducción de alarmas por severidad
+  vibration: ^3.2.1                 # Patrones de vibración personalizados (compatible con SDK 34+)
+  flutter_local_notifications: ^18.0.1 # Notificaciones locales
+
+  # ─── Almacenamiento Local ───
+  hive: ^2.2.3                      # Base de datos NoSQL ultrarrápida
+  hive_flutter: ^1.1.0              # Integración Hive con Flutter
+  shared_preferences: ^2.3.4        # Configuraciones simples
+  http: ^1.2.0                      # Cliente HTTP para telemetría
+
+  # ─── Permisos ───
+  permission_handler: ^11.3.1       # Solicitud de permisos en runtime
+
+  # ─── Utilidades ───
+  uuid: ^4.5.1                      # Generación de IDs únicos
+  logger: ^2.5.0                    # Logging estructurado
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+  build_runner: ^2.4.13
+  bloc_test: ^9.1.7
+  mocktail: ^1.0.4
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - assets/images/
+    - assets/maps/
+    - assets/models/
+    - assets/styles/
+    - assets/fonts/
+    - assets/sounds/
+
+  # Tipografías offline (opcional)
+  # fonts:
+  #   - family: Inter
+  #     fonts:
+  #       - asset: assets/fonts/Inter-Regular.ttf
+  #       - asset: assets/fonts/Inter-Medium.ttf
+  #         weight: 500
+  #       - asset: assets/fonts/Inter-SemiBold.ttf
+  #         weight: 600
+  #       - asset: assets/fonts/Inter-Bold.ttf
+  #         weight: 700
