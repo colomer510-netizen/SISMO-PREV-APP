@@ -670,6 +670,30 @@
           .catch(err => console.warn('Fallo registro Service Worker:', err));
       });
     }
+
+    // WAKE LOCK API (Evita que el teléfono se suspenda o apague la pantalla en el navegador)
+    let wakeLock = null;
+    async function requestWakeLock() {
+      try {
+        if ('wakeLock' in navigator) {
+          wakeLock = await navigator.wakeLock.request('screen');
+          console.log('⚡ Screen Wake Lock activo: Pantalla encendida para monitoreo continuo.');
+          wakeLock.addEventListener('release', () => {
+            console.log('Wake Lock liberado.');
+          });
+        }
+      } catch (err) {
+        console.warn('Wake Lock no soportado o bloqueado:', err);
+      }
+    }
+    document.addEventListener('visibilitychange', () => {
+      if (wakeLock !== null && document.visibilityState === 'visible') {
+        requestWakeLock();
+      }
+    });
+    // Activar al primer toque o carga
+    window.addEventListener('click', requestWakeLock, { once: true });
+    requestWakeLock();
   </script>
 </body>
 </html>

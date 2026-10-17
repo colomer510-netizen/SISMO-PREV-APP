@@ -22,6 +22,7 @@ import 'dart:math';
 import 'package:sensors_plus/sensors_plus.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:vibration/vibration.dart';
+import '../../../../core/platform/foreground_service_controller.dart';
 import '../../../../features/seismic_detection/domain/usecases/sta_lta_trigger.dart';
 import '../../../../features/seismic_detection/data/datasources/telemetry_service.dart';
 
@@ -117,6 +118,9 @@ class _DashboardPageState extends State<DashboardPage>
     // Iniciar servicio de telemetría hacia el servidor
     _iniciarTelemetria();
     _iniciarMonitoreoAcelerometro();
+
+    // Activar Foreground Service para persistencia en segundo plano
+    ForegroundServiceController.instance.startService();
   }
 
   void _iniciarTelemetria() {

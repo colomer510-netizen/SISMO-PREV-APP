@@ -100,7 +100,7 @@ class ForegroundServiceController {
     if (_isRunning) return true;
 
     try {
-      // Verificar si el servicio puede iniciar.
+      // Solicitar permiso de notificaciones (Android 13+)
       final isGranted =
           await FlutterForegroundTask.checkNotificationPermission();
 
@@ -108,8 +108,13 @@ class ForegroundServiceController {
         await FlutterForegroundTask.requestNotificationPermission();
       }
 
-      // Intentar comunicación con el servicio nativo para iniciar
-      // la captura del acelerómetro a alta frecuencia.
+      // Iniciar el Foreground Service con notificación permanente
+      await FlutterForegroundTask.startService(
+        notificationTitle: 'SISMO-PREV: Monitoreo Sísmico Activo',
+        notificationText: 'Acelerómetro MEMS y red comunitaria en guardia 24/7.',
+      );
+
+      // Intentar comunicación con el servicio nativo si estuviera presente
       try {
         await _serviceChannel.invokeMethod(
           ChannelConstants.methodStartService,
@@ -119,8 +124,7 @@ class ForegroundServiceController {
           },
         );
       } on MissingPluginException {
-        // El servicio nativo aún no está implementado.
-        // Continuar con flutter_foreground_task como fallback.
+        // Fallback gestionado con flutter_foreground_task
       }
 
       _isRunning = true;
