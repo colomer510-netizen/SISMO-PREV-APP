@@ -63,51 +63,67 @@ Cuenta con un **Centro de Mando / Dashboard Web en tiempo real** con sismógrafo
 
 ---
 
-## 🚀 4. Guía de Ejecución y Despliegue Rápido
+## 🚀 4. Guía de Ejecución Rápida (1 Clic) y Descarga
 
-### Requisitos Previos:
-- Python 3.10+
-- Flutter SDK 3.47+ & Dart 3.13+
-- Java JDK 17 (OpenJDK)
+El proyecto incluye scripts automáticos que preparan el entorno virtual, instalan las dependencias e inician el servidor de monitoreo automáticamente:
 
-### Paso 1: Iniciar el Servidor de Monitoreo
+### 🐧 En Linux / macOS:
+Abre una terminal en la raíz del proyecto y ejecuta:
 ```bash
-cd servidor_monitoreo
-python3 -m venv venv_sismoprev
-source venv_sismoprev/bin/activate
-pip install fastapi uvicorn websockets requests google-genai
-python server.py
+chmod +x iniciar_servidor.sh
+./iniciar_servidor.sh
 ```
-El servidor estará activo en `http://localhost:8080`.
 
-### Paso 2: Ejecutar la Aplicación Móvil
-```bash
-cd cliente_movil_android
-flutter pub get
-
-# Opción A: Compilar APK instalable para Android
-flutter build apk --release
-
-# Opción B: Ejecutar como Web App / PWA
-flutter run -d chrome
+### 🪟 En Windows:
+Simplemente haz **doble clic** en:
+```cmd
+iniciar_servidor.bat
 ```
+*(O ejecútalo desde el Símbolo del Sistema / PowerShell).*
 
 ---
 
-## 🏆 5. Equipo de Desarrollo
+### 🌐 Accesos del Servidor una vez Iniciado:
+- **📊 Centro de Monitoreo / Dashboard:** `http://localhost:8080`
+- **📱 App Móvil Versión Web (PWA):** `http://localhost:8080/app/`
+- **📥 Descarga Directa del APK:** `http://localhost:8080/descargar-apk`
+- **📡 Feed Oficial de Sismos (Nicaragua & USGS):** `http://localhost:8080/api/seismic/public`
+
+---
+
+### 📲 5. Descarga e Instalación del APK de Android
+
+Tienes dos formas directas de obtener e instalar la aplicación en tu smartphone:
+
+1. **Desde este mismo repositorio de GitHub:**
+   - Descarga directa del archivo compilado: [`servidor_monitoreo/sismoprev.apk`](servidor_monitoreo/sismoprev.apk).
+2. **Desde el Servidor en Vivo:**
+   - Haz clic en el botón superior **📥 Descargar APK** del Dashboard o ingresa desde tu celular al enlace `/descargar-apk`.
+3. **Instalación en el teléfono:**
+   - Abre el archivo `.apk` descargado en tu Android.
+   - Si el sistema te lo solicita, permite *"Instalar aplicaciones de fuentes desconocidas"*.
+   - ¡Listo! La app se conectará automáticamente a la red comunitaria.
+
+---
+
+## 🏆 6. Equipo de Desarrollo
 - **FENIX CODE** (Nicaragua 🇳🇮)
 - **Evento:** Rally Latinoamericano de Innovación 2026.
+- **Desafío 02:** "Sensores al servicio de la comunidad".
 
 ---
 
-## 🚧 6. Estado del Proyecto & Próximas Funciones (Roadmap)
+## 🚧 7. Estado del Proyecto & Próximas Funciones (Roadmap)
 
 > [!NOTE]
-> **Proyecto en Desarrollo Activo:** Esta versión constituye el prototipo funcional presentado para el **Rally Latinoamericano de Innovación 2026**. El sistema continuará su ciclo de evolución con el fin de robustecer la resiliencia comunitaria y la interoperabilidad con centros sismológicos nacionales (INETER en Nicaragua / MARN en El Salvador).
+> **Proyecto en Desarrollo Activo:** Esta versión constituye el prototipo funcional presentado para el **Rally Latinoamericano de Innovación 2026**. El sistema continuará su ciclo de evolución con el fin de robustecer la resiliencia comunitaria y la interoperabilidad con centros sismológicos nacionales (INETER en Nicaragua).
+> Para revisar las 20 propuestas de expansión y aprovechamiento de hardware móvil, consulta [`PROPUESTAS_INNOVACION_SENSORES.md`](PROPUESTAS_INNOVACION_SENSORES.md).
 
 ### 🔮 Funciones Planificadas para Futuras Versiones:
+- [x] **Redes Sísmicas Públicas Integradas:** Monitoreo oficial en vivo de sismos en Nicaragua y Centroamérica con USGS.
+- [x] **Tonos Oficiales de Alarma:** SASMEX con voz sintetizada en español, EAS Nacional y selector en configuración.
 - [ ] **Malla Descentralizada P2P Autónoma:** Enrutamiento multipunto dinámico (*Multi-hop BLE Mesh*) para propagación de alertas en zonas rurales sin cobertura móvil.
-- [ ] **Inferencia Neuronal Edge (CNN v2):** Despliegue de modelo TensorFlow Lite ultraligero cuantizado a 8 bits directamente en el procesador del teléfono para filtrado extremo de falsos positivos mecánicos.
+- [ ] **Inferencia Neuronal Edge (TinyML):** Despliegue de modelo TensorFlow Lite ultraligero directamente en el procesador del teléfono para filtrado extremo de falsos positivos mecánicos.
 - [ ] **Pasarela de Alertas Masivas por SMS y Cell Broadcast:** Integración con protocolos de emergencia CAP 1.2 (*Common Alerting Protocol*) para radiodifusión celular de defensa civil.
 - [ ] **Mapas Vectoriales Topográficos Offline:** Integración de teselas MBTiles de zonas de seguridad escolar y albergues sin requerir descarga de datos en línea.
 - [ ] **Sincronización Cloud con Firebase Cloud Messaging (FCM):** Canal de empuje en milisegundos con soporte para despertar teléfonos en reposo (*Doze Mode*).
