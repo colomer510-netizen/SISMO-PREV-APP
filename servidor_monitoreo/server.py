@@ -110,6 +110,18 @@ def send_telegram_alert(message_text: str):
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
+def load_env_variables():
+    env_file = os.path.join(os.path.dirname(__file__), ".env")
+    if os.path.exists(env_file):
+        with open(env_file, "r", encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if line and not line.startswith("#") and "=" in line:
+                    k, v = line.split("=", 1)
+                    os.environ.setdefault(k.strip(), v.strip())
+
+load_env_variables()
+
 def query_ai_assistant(prompt: str) -> str:
     gemini_key = os.environ.get("GEMINI_API_KEY", "").strip()
 
@@ -122,12 +134,12 @@ def query_ai_assistant(prompt: str) -> str:
                 "Analiza la aceleración del suelo (PGA), estima magnitud y da recomendaciones breves."
             )
             response = client.models.generate_content(
-                model="gemini-2.5-flash",
+                model="gemini-3.8-flash",
                 contents=prompt,
                 config={"system_instruction": system_instruction}
             )
             if response and response.text:
-                return "Google Gemini 2.5 Flash:\n" + response.text.strip()
+                return "Google Gemini (gemini-3.8-flash):\n" + response.text.strip()
         except Exception:
             pass
 
@@ -309,7 +321,7 @@ def ai_analysis(request_data: Dict[str, Any]):
             "Genera en viñetas breves: 1. Nivel de daño estructural esperado. 2. Prioridades de bomberos. 3. Mensaje oficial para escuelas."
         )
     analysis = query_ai_assistant(prompt)
-    model_name = "Google Gemini 2.5 Flash" if os.environ.get("GEMINI_API_KEY") else "SISMO-PREV AI Engine"
+    model_name = "Google Gemini 3.8 Flash"
     return {"analysis": analysis, "model": model_name}
 
 @app.get("/api/cap/feed.xml")

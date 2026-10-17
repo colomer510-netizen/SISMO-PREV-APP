@@ -29,3 +29,5 @@ cliente_movil_android/android/app/build/
 .vscode/
 *.swp
 *.log
+.env
+*.env
