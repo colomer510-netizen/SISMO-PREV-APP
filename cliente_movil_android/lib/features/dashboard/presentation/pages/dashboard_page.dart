@@ -125,8 +125,18 @@ class _DashboardPageState extends State<DashboardPage>
   }
 
   void _iniciarTelemetria() {
+    String baseUrl = _serverIp.trim();
+    if (baseUrl.startsWith('http://') || baseUrl.startsWith('https://')) {
+      // Si el usuario ya pegó la URL completa (ej. Cloudflare https://...)
+      if (baseUrl.endsWith('/')) {
+        baseUrl = baseUrl.substring(0, baseUrl.length - 1);
+      }
+    } else {
+      baseUrl = 'http://$baseUrl:$_serverPort';
+    }
+
     _telemetryService = TelemetryService(
-      serverBaseUrl: 'http://$_serverIp:$_serverPort',
+      serverBaseUrl: baseUrl,
       nodeId: _nodeId,
       place: 'Muro Estructural - $_nodeId',
     );
@@ -1027,9 +1037,12 @@ class _DashboardPageState extends State<DashboardPage>
                   _iniciarTelemetria();
                 });
                 Navigator.pop(context);
+                final displayUrl = (_serverIp.startsWith('http://') || _serverIp.startsWith('https://'))
+                    ? _serverIp
+                    : 'http://$_serverIp:$_serverPort';
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
-                    content: Text('Servidor actualizado a: http://$_serverIp:$_serverPort'),
+                    content: Text('Servidor actualizado a: $displayUrl'),
                     backgroundColor: AppColors.statusActive,
                   ),
                 );

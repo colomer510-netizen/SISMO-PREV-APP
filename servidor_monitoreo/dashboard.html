@@ -346,6 +346,10 @@
           <button class="btn-reset" onclick="resetStatus()">
             🔄 Restablecer a Normal
           </button>
+          <!-- SENSOR ACELERÓMETRO EN EL NAVEGADOR DEL CELULAR -->
+          <button id="btnWebSensor" onclick="toggleWebSensorNode()" style="background: #0284c7; color: white;">
+            📱 Usar Este Teléfono Como Sensor
+          </button>
           <!-- MEGAFONÍA DE EMERGENCIA -->
           <button id="btnMegaphone" onclick="toggleEmergencyBroadcast()" style="background: #e11d48; color: white;">
             🎙️ Megafonía IP a Teléfonos
@@ -1091,6 +1095,82 @@
         }
       } catch (e) {
         out.innerHTML = '<span style="color: #f87171;">Error al enviar la clave al servidor.</span>';
+      }
+    }
+
+    // MODO SENSOR WEB MÓVIL (Usa el giroscopio/acelerómetro del navegador del teléfono)
+    let isWebSensorActive = false;
+    let webSensorId = 'WebSensor-' + Math.floor(1000 + Math.random() * 9000);
+    let lastSensorSend = 0;
+    let currentWebPga = 0.002;
+    let baselineG = 9.80665;
+    let staWindow = [];
+    let ltaWindow = [];
+
+    async function toggleWebSensorNode() {
+      const btn = document.getElementById('btnWebSensor');
+      if (isWebSensorActive) {
+        window.removeEventListener('devicemotion', handleDeviceMotion);
+        isWebSensorActive = false;
+        btn.innerText = '📱 Usar Este Teléfono Como Sensor';
+        btn.style.background = '#0284c7';
+        return;
+      }
+
+      // Solicitar permisos en iOS / Safari si aplica
+      if (typeof DeviceMotionEvent !== 'undefined' && typeof DeviceMotionEvent.requestPermission === 'function') {
+        try {
+          const permissionState = await DeviceMotionEvent.requestPermission();
+          if (permissionState !== 'granted') {
+            alert('Permiso de sensores denegado por el navegador.');
+            return;
+          }
+        } catch (e) {
+          console.warn('Error solicitando permiso:', e);
+        }
+      }
+
+      window.addEventListener('devicemotion', handleDeviceMotion);
+      isWebSensorActive = true;
+      btn.innerText = '🛑 Detener Sensor de Este Teléfono';
+      btn.style.background = '#10b981';
+      alert('✅ Sensor del teléfono activado. Agita o mueve tu teléfono para registrar la vibración en el servidor en tiempo real.');
+    }
+
+    function handleDeviceMotion(event) {
+      if (!isWebSensorActive) return;
+
+      const acc = event.accelerationIncludingGravity || event.acceleration;
+      if (!acc || acc.x === null || acc.y === null || acc.z === null) return;
+
+      // Magnitud del vector de aceleración
+      const totalAcc = Math.sqrt(acc.x * acc.x + acc.y * acc.y + acc.z * acc.z);
+      // Extraer componente de vibración restando gravedad estandar (1g ~ 9.8 m/s²)
+      const deltaAcc = Math.abs(totalAcc - baselineG);
+      // Convertir m/s² a 'g'
+      const pgaVal = Math.max(0.002, deltaAcc / 9.80665);
+      currentWebPga = (currentWebPga * 0.4) + (pgaVal * 0.6);
+
+      const now = Date.now();
+      // Enviar telemetría al servidor cada 250ms o si hay sacudida fuerte (> 0.05g) inmediatamente
+      if (now - lastSensorSend >= 250 || (pgaVal > 0.05 && now - lastSensorSend >= 100)) {
+        lastSensorSend = now;
+        const isTrigger = currentWebPga > 0.04;
+
+        fetch('/api/telemetry', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            node_id: webSensorId,
+            place: 'Navegador Web Móvil',
+            lat: 12.1364,
+            lng: -86.2514,
+            pga: parseFloat(currentWebPga.toFixed(4)),
+            sta_lta_ratio: isTrigger ? 4.5 : 1.1,
+            is_triggered: isTrigger,
+            battery: 100
+          })
+        }).catch(err => console.warn('Error enviando telemetría web:', err));
       }
     }
 
