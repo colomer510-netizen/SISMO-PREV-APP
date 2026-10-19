@@ -7,7 +7,6 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'core/theme/app_theme.dart';
 import 'features/dashboard/presentation/pages/dashboard_page.dart';
-import 'injection_container.dart';
 
 /// Widget raíz de la aplicación SismoGuard.
 ///

@@ -110,6 +110,8 @@ class MeshtasticDatasourceImpl implements MeshtasticDatasource {
       MeshtasticConnectionState.disconnected;
   String? _connectedNodeId;
 
+  String? get connectedNodeId => _connectedNodeId;
+
   // ─── Streams ───
   final StreamController<LoRaMessage> _messageController =
       StreamController<LoRaMessage>.broadcast();

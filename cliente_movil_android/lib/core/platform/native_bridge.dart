@@ -16,10 +16,6 @@ import '../constants/channel_constants.dart';
 /// superiores de la arquitectura.
 class NativeBridge {
   // ─── Method Channels ───
-  final MethodChannel _foregroundServiceChannel = const MethodChannel(
-    ChannelConstants.foregroundServiceMethod,
-  );
-
   final MethodChannel _accelerometerChannel = const MethodChannel(
     ChannelConstants.accelerometerMethod,
   );
@@ -64,10 +60,10 @@ class NativeBridge {
   /// Retorna offsets {x, y, z} para compensación de bias.
   Future<Map<String, double>?> calibrateAccelerometer() async {
     try {
-      final result = await _accelerometerChannel.invokeMethod<Map>(
+      final result = await _accelerometerChannel.invokeMethod<Map<Object?, Object?>>(
         ChannelConstants.methodCalibrate,
       );
-      return result?.map((key, value) => MapEntry(key as String, (value as num).toDouble()));
+      return result?.map((key, value) => MapEntry(key.toString(), (value as num).toDouble()));
     } on MissingPluginException {
       return null;
     }
@@ -76,7 +72,7 @@ class NativeBridge {
   /// Retorna información del sensor del dispositivo.
   Future<Map<String, dynamic>?> getDeviceSensorInfo() async {
     try {
-      final result = await _accelerometerChannel.invokeMethod<Map>(
+      final result = await _accelerometerChannel.invokeMethod<Map<Object?, Object?>>(
         ChannelConstants.methodGetSensorInfo,
       );
       return result?.cast<String, dynamic>();

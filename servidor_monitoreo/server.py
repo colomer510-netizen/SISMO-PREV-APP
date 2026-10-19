@@ -1,12 +1,13 @@
-import os
-import json
-import time
 import asyncio
-import io
 import csv
-from typing import Dict, List, Any, Optional
+import io
+import os
+import time
+from datetime import UTC, datetime
+from typing import Any
+
 import requests
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, Response
+from fastapi import FastAPI, HTTPException, Response, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse, JSONResponse
 from pydantic import BaseModel
 from seismic_cnn_filter import seismic_filter
@@ -15,8 +16,8 @@ app = FastAPI(title="SISMO-PREV Central Server", version="1.0.0")
 
 class ConnectionManager:
     def __init__(self):
-        self.active_dashboards: List[WebSocket] = []
-        self.active_sensors: Dict[str, WebSocket] = {}
+        self.active_dashboards: list[WebSocket] = []
+        self.active_sensors: dict[str, WebSocket] = {}
 
     async def connect_dashboard(self, websocket: WebSocket):
         await websocket.accept()
@@ -149,7 +150,7 @@ class TelemetryPayload(BaseModel):
     sta_lta_ratio: float = 1.0
     is_triggered: bool = False
     battery: int = 100
-    waveform: List[float] = []
+    waveform: list[float] = []
 
 class DrillControlPayload(BaseModel):
     action: str
@@ -264,8 +265,7 @@ def evaluate_seismic_consensus():
     if count >= 2 and not system_state["active_drill"]:
         avg_pga = sum(n.get("pga", 0.0) for n in triggered_nodes) / count
         mag_est = round(3.5 + (avg_pga * 10), 1)
-        if mag_est > 8.5:
-            mag_est = 8.5
+        mag_est = min(mag_est, 8.5)
 
         epi_lat, epi_lng, lead_time, dist_km = calculate_triangulation_and_lead_time(triggered_nodes, mag_est)
 
@@ -376,7 +376,7 @@ async def control_drill(drill: DrillControlPayload):
         return {"status": "drill_stopped"}
 
 @app.post("/api/ai/analyze")
-def ai_analysis(request_data: Dict[str, Any]):
+def ai_analysis(request_data: dict[str, Any]):
     prompt = request_data.get("prompt", "")
     if not prompt:
         pga = system_state["last_event"]["average_pga"] if system_state["last_event"] else 0.05
@@ -408,10 +408,10 @@ def list_ai_models():
             "models": gemini_models[:20]
         }
     except Exception as e:
-        return {"status": "error", "message": f"Error conectando con Gemini API: {str(e)}", "models": []}
+        return {"status": "error", "message": f"Error conectando con Gemini API: {e!s}", "models": []}
 
 @app.post("/api/ai/config")
-def update_ai_config(payload: Dict[str, Any]):
+def update_ai_config(payload: dict[str, Any]):
     """Permite guardar una nueva clave API de Gemini y actualizar el archivo local .env."""
     new_key = payload.get("api_key", "").strip()
     if not new_key:
@@ -428,7 +428,7 @@ def update_ai_config(payload: Dict[str, Any]):
         if not test_resp:
             raise Exception("No se recibió respuesta del modelo.")
     except Exception as e:
-        return {"status": "error", "message": f"Clave API inválida o error de conexión: {str(e)}"}
+        return {"status": "error", "message": f"Clave API inválida o error de conexión: {e!s}"}
     
     # Guardar en entorno y en .env
     os.environ["GEMINI_API_KEY"] = new_key
@@ -436,7 +436,7 @@ def update_ai_config(payload: Dict[str, Any]):
     try:
         with open(env_file, "w", encoding="utf-8") as f:
             f.write(f"GEMINI_API_KEY={new_key}\n")
-    except Exception as e:
+    except Exception:
         pass
         
     return {
@@ -448,7 +448,7 @@ def update_ai_config(payload: Dict[str, Any]):
 def get_cap_feed():
     """Genera documento XML bajo el estándar oficial OASIS CAP 1.2 (Common Alerting Protocol)."""
     last_event = system_state.get("last_event")
-    now_iso = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S-00:00")
+    now_iso = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%S-00:00")
     
     event_id = last_event["id"] if last_event else f"SISMO-NONE-{int(time.time())}"
     msg_type = "Alert" if last_event else "Update"
@@ -542,7 +542,7 @@ async def websocket_dashboard(websocket: WebSocket):
         while True:
             # Soporta tanto mensajes de texto/JSON como transmisión binaria de audio de megafonía
             message = await websocket.receive()
-            if "bytes" in message and message["bytes"]:
+            if message.get("bytes"):
                 # Retransmitir audio PCM en vivo a todos los smartphones conectados
                 await manager.broadcast_bytes_to_sensors(message["bytes"])
     except WebSocketDisconnect:
@@ -596,6 +596,8 @@ def get_sw():
     return FileResponse(path=sw_path, media_type="application/javascript")
 
 from fastapi.responses import FileResponse
+
+
 @app.get("/descargar-apk")
 def download_apk():
     apk_path = os.path.join(os.path.dirname(__file__), "sismoprev.apk")
@@ -606,6 +608,7 @@ def download_apk():
     )
 
 from fastapi.staticfiles import StaticFiles
+
 app.mount("/app", StaticFiles(directory="/home/enoc-colomer/Documentos/RALLY LATINOAMERICANO/PROYECTO_SISMOGUARD_SISTEMA/cliente_movil_android/build/web", html=True), name="flutter_app")
 
 if __name__ == "__main__":

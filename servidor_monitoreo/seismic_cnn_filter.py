@@ -7,6 +7,7 @@ Implementación pura en Python (sin dependencias binarias pesadas externas) para
 
 import math
 
+
 class SeismicCNN1DFilter:
     def __init__(self):
         # El espectro sísmico típico se concentra entre 1.0 y 12.0 Hz.

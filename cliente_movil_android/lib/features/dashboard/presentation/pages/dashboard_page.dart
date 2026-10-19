@@ -52,7 +52,7 @@ class _DashboardPageState extends State<DashboardPage>
   bool _isSeismicTriggered = false;
   String _threatLevel = 'NORMAL'; // NORMAL, ALERTA, EVACUACION, SIMULACRO
 
-  bool _isMonitoring = true;
+  final bool _isMonitoring = true;
   bool _isMeshActive = false;
   int _connectedPeers = 0;
   final List<String> _activeChannels = ['tcp_ip'];
@@ -975,7 +975,7 @@ class _DashboardPageState extends State<DashboardPage>
               ),
               const SizedBox(height: 16),
               DropdownButtonFormField<String>(
-                value: _selectedAlarmTone,
+                initialValue: _selectedAlarmTone,
                 dropdownColor: AppColors.darkSurfaceElevated,
                 style: const TextStyle(color: Colors.white, fontSize: 13),
                 decoration: const InputDecoration(

@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:math';
 import 'package:http/http.dart' as http;
 
 /// Servicio de Telemetría para conectar el teléfono con el Servidor Central SismoGuard.

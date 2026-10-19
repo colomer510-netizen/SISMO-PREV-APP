@@ -59,6 +59,7 @@ dependencies:
   uuid: ^4.5.1                      # Generación de IDs únicos
   logger: ^2.5.0                    # Logging estructurado
 
+  crypto: any
 dev_dependencies:
   flutter_test:
     sdk: flutter

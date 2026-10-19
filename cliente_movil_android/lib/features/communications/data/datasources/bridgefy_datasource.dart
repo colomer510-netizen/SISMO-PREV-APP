@@ -15,6 +15,7 @@
 
 import 'dart:convert';
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 
 import '../../../../core/constants/app_constants.dart';
 
@@ -113,6 +114,8 @@ class BridgefyDatasourceImpl implements BridgefyDatasource {
   MeshNetworkState _networkState = MeshNetworkState.uninitialized;
   MeshPropagationProfile _propagationProfile = MeshPropagationProfile.standard;
   int _connectedPeers = 0;
+
+  MeshPropagationProfile get propagationProfile => _propagationProfile;
 
   // ─── Streams ───
   final StreamController<MeshReceivedMessage> _messageController =
@@ -231,6 +234,7 @@ class BridgefyDatasourceImpl implements BridgefyDatasource {
       if (payloadBytes.length > 2048) {
         // Payload demasiado grande, enviar versión resumida
         final minimalPayload = _createMinimalPayload(alertData);
+        debugPrint('BLE Payload comprimido a minimal: ${minimalPayload.length} campos');
         // await _bridgefy?.broadcast(jsonEncode(minimalPayload));
         return true;
       }
@@ -251,6 +255,7 @@ class BridgefyDatasourceImpl implements BridgefyDatasource {
 
     try {
       final payload = jsonEncode(data);
+      debugPrint('Enviando mensaje directo P2P a $peerId (${payload.length} bytes)');
       // await _bridgefy?.send(peerId, payload);
       return true;
     } catch (e) {
@@ -319,7 +324,8 @@ class BridgefyDatasourceImpl implements BridgefyDatasource {
   }
 
   /// Procesa un mensaje recibido de la red de malla.
-  void _handleReceivedMessage(dynamic rawMessage, {required bool isBroadcast}) {
+  @visibleForTesting
+  void handleReceivedMessage(dynamic rawMessage, {required bool isBroadcast}) {
     try {
       final data = jsonDecode(rawMessage.toString()) as Map<String, dynamic>;
 

@@ -74,6 +74,8 @@ class CnnClassifier {
   final double _confidenceThreshold;
   final int _inputSampleCount; // 100 muestras (2s × 50Hz)
 
+  String get modelPath => _modelPath;
+
   // ─── Estado del Modelo ───
   bool _isModelLoaded = false;
   // Interpreter? _interpreter; // Descomentar con tflite_flutter
@@ -149,7 +151,7 @@ class CnnClassifier {
     }
 
     // ── Preprocesar datos ──
-    final input = _preprocessSamples(samples);
+    final _ = _preprocessSamples(samples);
 
     // ── Ejecutar inferencia ──
     // Descomentar con tflite_flutter:
