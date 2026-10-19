@@ -45,7 +45,7 @@ class _DashboardPageState extends State<DashboardPage>
   late TelemetryService _telemetryService;
 
   String _nodeId = 'TEL-SISMOPREV-01';
-  String _serverIp = '172.16.27.14';
+  String _serverIp = '10.133.133.113';
   int _serverPort = 8080;
   double _currentPga = 0.001;
   double _currentRatio = 1.0;

@@ -150,6 +150,12 @@ class TelemetryPayload(BaseModel):
     sta_lta_ratio: float = 1.0
     is_triggered: bool = False
     battery: int = 100
+    battery_temp: float = 28.0
+    angular_velocity: float = 0.0
+    light_lux: float = 0.0
+    is_relayed: bool = False
+    hops: int = 1
+    network_channel: str = "WiFi / P2P Mesh"
     waveform: list[float] = []
 
 class DrillControlPayload(BaseModel):

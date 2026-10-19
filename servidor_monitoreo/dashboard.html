@@ -876,11 +876,25 @@
       container.innerHTML = keys.map(id => {
         const n = nodes[id];
         const color = n.is_triggered ? '#ef4444' : '#10b981';
+        const temp = n.battery_temp ? `${n.battery_temp.toFixed(1)}°C` : '28°C';
+        const isHot = n.battery_temp && n.battery_temp >= 45.0;
+        const gyro = n.angular_velocity ? `${n.angular_velocity.toFixed(2)} rad/s` : '0.00 rad/s';
+        const relayBadge = n.is_relayed 
+          ? `<span style="font-size: 9px; background: #0369a1; color: white; padding: 1px 5px; border-radius: 4px; margin-left: 4px;">📡 Malla Salto ${n.hops || 1}</span>` 
+          : '';
         return `
-          <div class="node-item">
+          <div class="node-item" style="border-left: 3px solid ${color};">
             <div>
-              <strong>${n.node_id}</strong>
-              <div style="font-size: 11px; color: #94a3b8;">${n.place || 'Lado norte'} • Bat: ${n.battery || 100}%</div>
+              <div style="display: flex; align-items: center;">
+                <strong>${n.node_id}</strong>
+                ${relayBadge}
+              </div>
+              <div style="font-size: 10.5px; color: #94a3b8; margin-top: 2px;">
+                ${n.place || 'Zona Comunitaria'} • Bat: ${n.battery || 100}% • <span style="color: ${isHot ? '#ef4444' : '#10b981'}; font-weight: bold;">🌡️ ${temp}</span>
+              </div>
+              <div style="font-size: 9.5px; color: #64748b;">
+                🌀 Giroscopio: ${gyro} • Canal: ${n.network_channel || 'P2P Mesh'}
+              </div>
             </div>
             <div style="text-align: right;">
               <span class="node-status" style="background: ${color}"></span>
