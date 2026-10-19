@@ -609,7 +609,9 @@ def download_apk():
 
 from fastapi.staticfiles import StaticFiles
 
-app.mount("/app", StaticFiles(directory="/home/enoc-colomer/Documentos/RALLY LATINOAMERICANO/PROYECTO_SISMOGUARD_SISTEMA/cliente_movil_android/build/web", html=True), name="flutter_app")
+web_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "cliente_movil_android", "build", "web")
+if os.path.isdir(web_dir):
+    app.mount("/app", StaticFiles(directory=web_dir, html=True), name="flutter_app")
 
 if __name__ == "__main__":
     import uvicorn
